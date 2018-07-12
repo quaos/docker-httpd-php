@@ -14,7 +14,7 @@ RUN microdnf --enablerepo=rhel-7-server-rpms \
     && rpm -ivh epel-release-latest-7.noarch.rpm \
     && microdnf --enablerepo=rhel-7-server-rpms \
     install -y sudo nano vim curl net-tools traceroute python \
-    systemd-sysv scl-utils
+    systemd-sysv scl-utils policycoreutils-python
 
 RUN groupadd docker \
     && useradd -r -u 1001 -g docker docker \

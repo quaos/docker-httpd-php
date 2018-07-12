@@ -9,6 +9,9 @@ RUN set -x \
 # http://git.alpinelinux.org/cgit/aports/tree/main/lighttpd/lighttpd.pre-install?h=v3.3.2
 # http://git.alpinelinux.org/cgit/aports/tree/main/nginx-initscripts/nginx-initscripts.pre-install?h=v3.3.2
 
+RUN apk update
+RUN mkdir -p /usr/src
+
 WORKDIR /usr/src
 
 ENV HTTPD_VERSION 2.4.33
@@ -56,13 +59,11 @@ RUN set -eux; \
 		libxml2-dev \
 		# mod_lua
 		lua-dev \
-		make \
 		# mod_http2
 		nghttp2-dev \
-		pcre-dev \
-		bzip2-dev \
+		pcre-dev libedit-dev \
+		bzip2-dev zlib-dev curl-dev \
 		# mod_deflate
-		zlib-dev \
 	; \
 	\
 	ddist() { \
@@ -145,20 +146,45 @@ RUN set -eux; \
 COPY httpd-foreground /usr/local/bin/
 
 # Install PHP7 from source {
+# Reference: https://github.com/docker-library/php/blob/3cb02a21164bc2bdb8b25ec48886ffcb7e195510/7.0/alpine/Dockerfile
+
 #WORKDIR /usr/src
 
 ENV PHP_VERSION 7.2.7
 ENV PHP_MIRROR "ca1.php.net"
-ENV PHP_BUILD_CONFIG "--prefix=/opt/php-${PHP_VERSION} --with-pdo-pgsql --with-zlib-dir --with-freetype-dir --enable-mbstring --with-libxml-dir=/usr --enable-soap --enable-calendar --with-curl --with-zlib --with-gd --with-pgsql --disable-rpath --enable-inline-optimization --with-bz2 --with-zlib --enable-sockets --enable-sysvsem --enable-sysvshm --enable-pcntl --enable-mbregex --enable-exif --enable-bcmath --with-mhash --enable-zip --with-pcre-regex --with-pdo-mysql --with-mysqli --with-mysql-sock=/var/run/mysqld/mysqld.sock --with-jpeg-dir=/usr --with-png-dir=/usr --with-openssl --with-fpm-user=www-data --with-fpm-group=www-data --with-libdir=/lib/x86_64-linux-gnu --enable-ftp --with-imap --with-imap-ssl --with-kerberos --with-gettext --with-xmlrpc --with-xsl --enable-opcache --enable-fpm"
+ENV PHP_BASE_DIR /opt/php-${PHP_VERSION}
+ENV PHP_INI_DIR ${PHP_BASE_DIR}/lib
+#ENV PHP_BUILD_CONFIG "--prefix=/opt/php-${PHP_VERSION} --with-pdo-pgsql --with-zlib-dir --with-freetype-dir --enable-mbstring --with-libxml-dir=/usr --enable-soap --enable-calendar --with-curl --with-zlib --with-gd --with-pgsql --disable-rpath --enable-inline-optimization --with-bz2 --with-zlib --enable-sockets --enable-sysvsem --enable-sysvshm --enable-pcntl --enable-mbregex --enable-exif --enable-bcmath --with-mhash --enable-zip --with-pcre-regex --with-pdo-mysql --with-mysqli --with-mysql-sock=/var/run/mysqld/mysqld.sock --with-jpeg-dir=/usr --with-png-dir=/usr --with-openssl --with-fpm-user=www-data --with-fpm-group=www-data --with-libdir=/lib/x86_64-linux-gnu --enable-ftp --with-imap --with-imap-ssl --with-kerberos --with-gettext --with-xmlrpc --with-xsl --enable-opcache --enable-fpm"
 
 RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O php-${PHP_VERSION}.tar.gz \
     && tar -xzvf php-${PHP_VERSION}.tar.gz \
     && cd php-${PHP_VERSION} \
-    && ./configure ${PHP_BUILD_CONFIG} \
-    && make && make install \
-    && cp php.ini-production /opt/php-${PHP_VERSION}/lib/php.ini \
-    && cp /opt/php-${PHP_VERSION}/etc/php-fpm.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.conf \
-    && cp /opt/php-${PHP_VERSION}/etc/php-fpm.d/www.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.d/www.conf
+    && mkdir -p ${PHP_BASE_DIR} \
+    && mkdir -p ${PHP_INI_DIR} \
+    && ./configure \
+        --with-config-file-path="${PHP_INI_DIR}" \
+	--with-config-file-scan-dir="${PHP_INI_DIR}/conf.d" \
+        --disable-cgi \
+    # --enable-ftp is included here because ftp_ssl_connect() needs ftp to be compiled statically (see https://github.com/docker-library/php/issues/236)
+        --enable-ftp \
+    # --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
+        --enable-mbstring \
+    # --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
+        --enable-mysqlnd \
+	--with-curl \
+	--with-libedit \
+	--with-openssl \
+	--with-zlib \
+	$PHP_EXTRA_CONFIGURE_ARGS \
+    && make -j "$(getconf _NPROCESSORS_ONLN)" \
+    && make install \
+    && { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
+    && cp php.ini-production ${PHP_INI_DIR}/php.ini \
+    && cp ${PHP_BASE_DIR}/etc/php-fpm.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.conf \
+    && cp ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.d/www.conf \
+    && make clean \
+    && cd ..
+    && 
     
 # }
 
