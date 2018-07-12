@@ -8,7 +8,7 @@ RUN microdnf update
 
 # Install repos & tools
 RUN microdnf --enablerepo=rhel-7-server-rpms \
-    install -y sudo gcc-c++ gcc libstdc++ libgcc make \
+    install -y sudo gcc-c++ gcc libstdc++ libgcc make libselinux-utils \
     gnupg tar curl wget openssl \
     && wget http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
     && rpm -ivh epel-release-latest-7.noarch.rpm \

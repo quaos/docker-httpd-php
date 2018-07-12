@@ -38,7 +38,8 @@ RUN set -eux; \
 		apr-dev \
 		apr-util-dev \
 		apr-util-ldap \
-		perl \
+		tar bzip2 perl \
+                wget curl nano vim \
 	'; \
 	apk add --no-cache --virtual .build-deps \
 		$runDeps \
@@ -59,10 +60,9 @@ RUN set -eux; \
 		# mod_http2
 		nghttp2-dev \
 		pcre-dev \
-		tar \
+		bzip2-dev \
 		# mod_deflate
 		zlib-dev \
-                wget curl nano vim \
 	; \
 	\
 	ddist() { \
