@@ -1,6 +1,8 @@
 FROM registry.access.redhat.com/rhel7-atomic:latest
 MAINTAINER chakrit_w@icloud.com
 
+USER 0
+
 RUN microdnf update
 # && microdnf check-update --security
 
@@ -41,6 +43,8 @@ RUN microdnf --enablerepo=rhel-7-server-rpms \
 
 # Install PHP 7.2 {
 
+WORKDIR /
+
 RUN wget http://rpms.remirepo.net/enterprise/remi-release-7.rpm \
     && rpm -ivh remi-release-7.rpm \
     && microdnf --enablerepo=remi-php72 \
@@ -54,6 +58,8 @@ RUN wget http://rpms.remirepo.net/enterprise/remi-release-7.rpm \
 RUN microdnf clean all
 
 COPY httpd-foreground /usr/local/bin/
+
+WORKDIR ${HTTPD_PREFIX}
 
 EXPOSE 80
 

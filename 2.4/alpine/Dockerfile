@@ -92,7 +92,7 @@ RUN set -eux; \
             # Workaround for keyserver issue {
             ( gpg --keyserver p80.pool.sks-keyservers.net:80 --recv-keys "$key" \
               || gpg --keyserver pgp.mit.edu --recv-keys "$key" \
-              || gpg --keyserver keyserver.pgp.com --recv-keys "$key" )
+              || gpg --keyserver keyserver.pgp.com --recv-keys "$key" ) \
             # }
 	done; \
 	gpg --batch --verify httpd.tar.bz2.asc httpd.tar.bz2; \
