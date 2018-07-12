@@ -160,6 +160,7 @@ RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O 
     && mkdir -p ${PHP_BASE_DIR}; \
     && mkdir -p ${PHP_INI_DIR}; \
     && ./configure \
+        --prefix="${PHP_BASE_DIR}" \
         --with-config-file-path="${PHP_INI_DIR}" \
 	--with-config-file-scan-dir="${PHP_INI_DIR}/conf.d" \
         --disable-cgi \
@@ -178,8 +179,8 @@ RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O 
     && make install; \
     && { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
     && cp php.ini-production ${PHP_INI_DIR}/php.ini; \
-    && cp ${PHP_BASE_DIR}/etc/php-fpm.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.conf; \
-    && cp ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.d/www.conf; \
+    && cp ${PHP_BASE_DIR}/etc/php-fpm.conf.default ${PHP_BASE_DIR}/etc/php-fpm.conf; \
+    && cp ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf.default ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf; \
     && make clean; \
     && cd ..; \
     && rm -r php-${PHP_VERSION}; \
