@@ -174,6 +174,9 @@ RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O 
 	--with-libedit \
 	--with-openssl \
 	--with-zlib \
+        # --with-httpd24 \
+        --enable-fpm  \
+        --enable-opcache \
 	$PHP_EXTRA_CONFIGURE_ARGS; \
     && make -j "$(getconf _NPROCESSORS_ONLN)"; \
     && make install; \
