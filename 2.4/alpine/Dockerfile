@@ -125,10 +125,8 @@ RUN set -eux; \
 	; \
 	make -j "$(nproc)"; \
 	make install; \
-	\
 	cd ..; \
-	#rm -r src man manual; \
-	\
+	rm -r httpd-${HTTPD_VERSION}; \
 	sed -ri \
 		-e 's!^(\s*CustomLog)\s+\S+!\1 /proc/self/fd/1!g' \
 		-e 's!^(\s*ErrorLog)\s+\S+!\1 /proc/self/fd/2!g' \
@@ -156,11 +154,11 @@ ENV PHP_BASE_DIR /opt/php-${PHP_VERSION}
 ENV PHP_INI_DIR ${PHP_BASE_DIR}/lib
 #ENV PHP_BUILD_CONFIG "--prefix=/opt/php-${PHP_VERSION} --with-pdo-pgsql --with-zlib-dir --with-freetype-dir --enable-mbstring --with-libxml-dir=/usr --enable-soap --enable-calendar --with-curl --with-zlib --with-gd --with-pgsql --disable-rpath --enable-inline-optimization --with-bz2 --with-zlib --enable-sockets --enable-sysvsem --enable-sysvshm --enable-pcntl --enable-mbregex --enable-exif --enable-bcmath --with-mhash --enable-zip --with-pcre-regex --with-pdo-mysql --with-mysqli --with-mysql-sock=/var/run/mysqld/mysqld.sock --with-jpeg-dir=/usr --with-png-dir=/usr --with-openssl --with-fpm-user=www-data --with-fpm-group=www-data --with-libdir=/lib/x86_64-linux-gnu --enable-ftp --with-imap --with-imap-ssl --with-kerberos --with-gettext --with-xmlrpc --with-xsl --enable-opcache --enable-fpm"
 
-RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O php-${PHP_VERSION}.tar.gz \
-    && tar -xzvf php-${PHP_VERSION}.tar.gz \
-    && cd php-${PHP_VERSION} \
-    && mkdir -p ${PHP_BASE_DIR} \
-    && mkdir -p ${PHP_INI_DIR} \
+RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O php-${PHP_VERSION}.tar.gz; \
+    && tar -xzvf php-${PHP_VERSION}.tar.gz; \
+    && cd php-${PHP_VERSION}; \
+    && mkdir -p ${PHP_BASE_DIR}; \
+    && mkdir -p ${PHP_INI_DIR}; \
     && ./configure \
         --with-config-file-path="${PHP_INI_DIR}" \
 	--with-config-file-scan-dir="${PHP_INI_DIR}/conf.d" \
@@ -175,16 +173,24 @@ RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O 
 	--with-libedit \
 	--with-openssl \
 	--with-zlib \
-	$PHP_EXTRA_CONFIGURE_ARGS \
-    && make -j "$(getconf _NPROCESSORS_ONLN)" \
-    && make install \
+	$PHP_EXTRA_CONFIGURE_ARGS; \
+    && make -j "$(getconf _NPROCESSORS_ONLN)"; \
+    && make install; \
     && { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
-    && cp php.ini-production ${PHP_INI_DIR}/php.ini \
-    && cp ${PHP_BASE_DIR}/etc/php-fpm.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.conf \
-    && cp ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.d/www.conf \
-    && make clean \
-    && cd ..
-    && 
+    && cp php.ini-production ${PHP_INI_DIR}/php.ini; \
+    && cp ${PHP_BASE_DIR}/etc/php-fpm.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.conf; \
+    && cp ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.d/www.conf; \
+    && make clean; \
+    && cd ..; \
+    && rm -r php-${PHP_VERSION}; \
+    && runDeps="$( \
+            scanelf --needed --nobanner --recursive /usr/local \
+                    | awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
+                    | sort -u \
+                    | xargs -r apk info --installed \
+                    | sort -u \
+    )"; \
+    && apk add --no-cache --virtual .php-rundeps $runDeps
     
 # }
 
