@@ -14,11 +14,25 @@ RUN microdnf --enablerepo=rhel-7-server-rpms \
     && rpm -ivh epel-release-latest-7.noarch.rpm \
     && microdnf --enablerepo=rhel-7-server-rpms \
     install -y sudo nano vim curl net-tools traceroute python \
-    systemd-sysv scl-utils policycoreutils-python
+    systemd-sysv scl-utils policycoreutils-python libedit libX11
 
 RUN groupadd docker \
     && useradd -r -u 1001 -g docker docker \
     && echo '%docker ALL=(ALL) NOPASSWD:ALL' >>/etc/sudoers
+
+# Install PHP 7.2 {
+
+WORKDIR /
+
+RUN wget http://rpms.remirepo.net/enterprise/remi-release-7.rpm \
+    && rpm -ivh remi-release-7.rpm \
+    && microdnf --enablerepo=remi-php72 \
+    install -y php72 php72-php-fpm
+ 
+#TODO:   
+#COPY php-config/* /etc/php72/
+
+# }
 
 # Install Apache HTTPD {
 
@@ -40,20 +54,6 @@ RUN microdnf --enablerepo=rhel-7-server-rpms \
 #TODO:   
 #COPY httpd-config/* /etc/httpd/
     
-# }
-
-# Install PHP 7.2 {
-
-WORKDIR /
-
-RUN wget http://rpms.remirepo.net/enterprise/remi-release-7.rpm \
-    && rpm -ivh remi-release-7.rpm \
-    && microdnf --enablerepo=remi-php72 \
-    install -y php72 php72-php-fpm
- 
-#TODO:   
-#COPY php-config/* /etc/php72/
-
 # }
 
 RUN microdnf clean all
