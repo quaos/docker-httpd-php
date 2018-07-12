@@ -43,7 +43,7 @@ RUN set -eux; \
 		ca-certificates \
 		coreutils \
 		dpkg-dev dpkg \
-		gcc \
+		gcc g++ autoconf make \
 		gnupg \
 		libc-dev \
 		# mod_session_crypto
@@ -60,6 +60,7 @@ RUN set -eux; \
 		tar \
 		# mod_deflate
 		zlib-dev \
+                wget curl nano vim \
 	; \
 	\
 	ddist() { \
@@ -139,5 +140,18 @@ RUN set -eux; \
 
 COPY httpd-foreground /usr/local/bin/
 
+# Install PHP7 from source {
+WORKDIR /usr/src
+
+RUN wget http://ca1.php.net/get/php-7.2.7.tar.gz/from/this/mirror \
+    && ./configure \
+    && make && make install
+# }
+
+WORKDIR ${HTTPD_PREFIX}
+
 EXPOSE 80
+
+USER www-data
+
 CMD ["httpd-foreground"]
