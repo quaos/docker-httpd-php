@@ -14,14 +14,16 @@ RUN mkdir -p /usr/src
 
 WORKDIR /usr/src
 
+# Install Apache HTTPD {
+
 ENV HTTPD_VERSION 2.4.33
 ENV HTTPD_SHA256 de02511859b00d17845b9abdd1f975d5ccb5d0b280c567da5bf2ad4b70846f05
 
 #ENV HTTPD_PREFIX /usr/local/apache2
 ENV HTTPD_PREFIX /opt/apache/httpd-${HTTPD_VERSION}
 ENV PATH $HTTPD_PREFIX/bin:$PATH
-RUN mkdir -p "$HTTPD_PREFIX" \
-	&& chown www-data:www-data "$HTTPD_PREFIX"
+RUN mkdir -p "${HTTPD_PREFIX}" \
+	&& chown www-data:www-data "${HTTPD_PREFIX}"
     
 # https://httpd.apache.org/security/vulnerabilities_24.html
 ENV HTTPD_PATCHES=""
@@ -143,6 +145,12 @@ RUN set -eux; \
 
 COPY httpd-foreground /usr/local/bin/
 
+RUN chown www-data:www-data /usr/local/bin/httpd-foreground; \
+    && chmod 755 /usr/local/bin/httpd-foreground; \
+    && chown -R www-data:www-data ${HTTPD_PREFIX}
+
+# }
+
 # Install PHP7 from source {
 # Reference: https://github.com/docker-library/php/blob/3cb02a21164bc2bdb8b25ec48886ffcb7e195510/7.0/alpine/Dockerfile
 
@@ -194,8 +202,17 @@ RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O 
                     | xargs -r apk info --installed \
                     | sort -u \
     )"; \
-    && apk add --no-cache --virtual .php-rundeps $runDeps
+    apk add --no-cache --virtual .php-rundeps $runDeps
     
+# }
+
+# Set configurations for Apache HTTPD & PHP/FPM {
+# Reference: https://github.com/smrutiranjantripathy/alpine-apache-php-fpm
+
+COPY 00-httpd-fpm.conf ${HTTPD_PREFIX}/etc/conf.d/
+
+RUN sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_BASE_DIR}/etc/php-fpm.conf
+
 # }
 
 RUN apk del .build-deps
