@@ -48,7 +48,7 @@ WORKDIR /
 RUN wget http://rpms.remirepo.net/enterprise/remi-release-7.rpm \
     && rpm -ivh remi-release-7.rpm \
     && microdnf --enablerepo=remi-php72 \
-    install -y remi-php72
+    install -y php72 php72-php-fpm
  
 #TODO:   
 #COPY php-config/* /etc/php72/

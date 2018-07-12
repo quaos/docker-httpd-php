@@ -147,11 +147,18 @@ COPY httpd-foreground /usr/local/bin/
 # Install PHP7 from source {
 WORKDIR /usr/src
 
-RUN wget http://ca1.php.net/get/php-7.2.7.tar.gz/from/this/mirror \
-    && tar -xzvf php-7.2.7.tar.gz \
-    && cd php-7.2.7 \
-    && ./configure \
-    && make && make install
+ENV PHP_VERSION 7.2.7
+ENV PHP_MIRROR "ca1.php.net"
+ENV PHP_BUILD_CONFIG "--prefix=/opt/php-${PHP_VERSION} --with-pdo-pgsql --with-zlib-dir --with-freetype-dir --enable-mbstring --with-libxml-dir=/usr --enable-soap --enable-calendar --with-curl --with-zlib --with-gd --with-pgsql --disable-rpath --enable-inline-optimization --with-bz2 --with-zlib --enable-sockets --enable-sysvsem --enable-sysvshm --enable-pcntl --enable-mbregex --enable-exif --enable-bcmath --with-mhash --enable-zip --with-pcre-regex --with-pdo-mysql --with-mysqli --with-mysql-sock=/var/run/mysqld/mysqld.sock --with-jpeg-dir=/usr --with-png-dir=/usr --with-openssl --with-fpm-user=www-data --with-fpm-group=www-data --with-libdir=/lib/x86_64-linux-gnu --enable-ftp --with-imap --with-imap-ssl --with-kerberos --with-gettext --with-xmlrpc --with-xsl --enable-opcache --enable-fpm"
+
+RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O php-${PHP_VERSION}.tar.gz \
+    && tar -xzvf php-${PHP_VERSION}.tar.gz \
+    && cd php-${PHP_VERSION} \
+    && ./configure ${PHP_BUILD_CONFIG} \
+    && make && make install \
+    && cp php.ini-production /opt/php-${PHP_VERSION}/lib/php.ini \
+    && cp /opt/php-${PHP_VERSION}/etc/php-fpm.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.conf \
+    && cp /opt/php-${PHP_VERSION}/etc/php-fpm.d/www.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.d/www.conf
     
 # }
 
