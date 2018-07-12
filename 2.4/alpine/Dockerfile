@@ -124,6 +124,8 @@ RUN set -eux; \
 		--prefix="$HTTPD_PREFIX" \
 		--enable-mods-shared=reallyall \
 		--enable-mpms-shared=all \
+                --enable-proxy --enable-proxy-fcgi \
+                ${HTTPD_EXTRA_CONFIGURE_ARGS}; \
 	; \
 	make -j "$(nproc)"; \
 	make install; \
@@ -185,7 +187,7 @@ RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O 
         # --with-httpd24 \
         --enable-fpm  \
         --enable-opcache \
-	$PHP_EXTRA_CONFIGURE_ARGS; \
+	${PHP_EXTRA_CONFIGURE_ARGS}; \
     && make -j "$(getconf _NPROCESSORS_ONLN)"; \
     && make install; \
     && { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
