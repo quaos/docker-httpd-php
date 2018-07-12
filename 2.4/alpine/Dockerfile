@@ -43,7 +43,7 @@ RUN set -eux; \
 		ca-certificates \
 		coreutils \
 		dpkg-dev dpkg \
-		gcc g++ autoconf make \
+		gcc g++ autoconf make patch \
 		gnupg \
 		libc-dev \
 		# mod_session_crypto
@@ -89,7 +89,11 @@ RUN set -eux; \
 # gpg: key 995E35221AD84DFF: public key "Daniel Ruggeri (http://home.apache.org/~druggeri/) <druggeri@apache.org>" imported
 		B9E8213AEFB861AF35A41F2C995E35221AD84DFF \
 	; do \
-		gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
+            # Workaround for keyserver issue {
+            ( gpg --keyserver p80.pool.sks-keyservers.net:80 --recv-keys "$key" \
+              || gpg --keyserver pgp.mit.edu --recv-keys "$key" \
+              || gpg --keyserver keyserver.pgp.com --recv-keys "$key" )
+            # }
 	done; \
 	gpg --batch --verify httpd.tar.bz2.asc httpd.tar.bz2; \
 	rm -rf "$GNUPGHOME" httpd.tar.bz2.asc; \
