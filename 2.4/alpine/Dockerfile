@@ -9,15 +9,17 @@ RUN set -x \
 # http://git.alpinelinux.org/cgit/aports/tree/main/lighttpd/lighttpd.pre-install?h=v3.3.2
 # http://git.alpinelinux.org/cgit/aports/tree/main/nginx-initscripts/nginx-initscripts.pre-install?h=v3.3.2
 
-ENV HTTPD_PREFIX /usr/local/apache2
-ENV PATH $HTTPD_PREFIX/bin:$PATH
-RUN mkdir -p "$HTTPD_PREFIX" \
-	&& chown www-data:www-data "$HTTPD_PREFIX"
-WORKDIR $HTTPD_PREFIX
+WORKDIR /usr/src
 
 ENV HTTPD_VERSION 2.4.33
 ENV HTTPD_SHA256 de02511859b00d17845b9abdd1f975d5ccb5d0b280c567da5bf2ad4b70846f05
 
+#ENV HTTPD_PREFIX /usr/local/apache2
+ENV HTTPD_PREFIX /opt/apache/httpd-${HTTPD_VERSION}
+ENV PATH $HTTPD_PREFIX/bin:$PATH
+RUN mkdir -p "$HTTPD_PREFIX" \
+	&& chown www-data:www-data "$HTTPD_PREFIX"
+    
 # https://httpd.apache.org/security/vulnerabilities_24.html
 ENV HTTPD_PATCHES=""
 
@@ -97,12 +99,10 @@ RUN set -eux; \
 	done; \
 	gpg --batch --verify httpd.tar.bz2.asc httpd.tar.bz2; \
 	rm -rf "$GNUPGHOME" httpd.tar.bz2.asc; \
-	\
-	mkdir -p src; \
-	tar -xf httpd.tar.bz2 -C src --strip-components=1; \
+	mkdir -p httpd-${HTTPD_VERSION}; \
+	tar -xf httpd.tar.bz2 -C httpd-${HTTPD_VERSION} --strip-components=1; \
 	rm httpd.tar.bz2; \
-	cd src; \
-	\
+	cd httpd-${HTTPD_VERSION}; \
 	patches() { \
 		while [ "$#" -gt 0 ]; do \
 			local patchFile="$1"; shift; \
@@ -126,7 +126,7 @@ RUN set -eux; \
 	make install; \
 	\
 	cd ..; \
-	rm -r src man manual; \
+	#rm -r src man manual; \
 	\
 	sed -ri \
 		-e 's!^(\s*CustomLog)\s+\S+!\1 /proc/self/fd/1!g' \
@@ -139,13 +139,13 @@ RUN set -eux; \
 			| sort -u \
 			| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
 	)"; \
-	apk add --virtual .httpd-rundeps $runDeps; \
-	apk del .build-deps
+	apk add --virtual .httpd-rundeps $runDeps;
+	# apk del .build-deps
 
 COPY httpd-foreground /usr/local/bin/
 
 # Install PHP7 from source {
-WORKDIR /usr/src
+#WORKDIR /usr/src
 
 ENV PHP_VERSION 7.2.7
 ENV PHP_MIRROR "ca1.php.net"
@@ -161,6 +161,8 @@ RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O 
     && cp /opt/php-${PHP_VERSION}/etc/php-fpm.d/www.conf.default /opt/php-${PHP_VERSION}/etc/php-fpm.d/www.conf
     
 # }
+
+RUN apk del .build-deps
 
 WORKDIR ${HTTPD_PREFIX}
 
