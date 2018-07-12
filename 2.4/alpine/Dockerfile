@@ -144,8 +144,11 @@ COPY httpd-foreground /usr/local/bin/
 WORKDIR /usr/src
 
 RUN wget http://ca1.php.net/get/php-7.2.7.tar.gz/from/this/mirror \
+    && tar -xzvf php-7.2.7.tar.gz \
+    && cd php-7.2.7 \
     && ./configure \
     && make && make install
+    
 # }
 
 WORKDIR ${HTTPD_PREFIX}
