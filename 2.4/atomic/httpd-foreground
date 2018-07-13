@@ -2,10 +2,9 @@
 set -e
 
 #Start PHP-FPM
-/usr/bin/php-fpm &
+exec php-fpm &
 
 # Apache gets grumpy about PID files pre-existing
-rm -f /usr/local/apache2/logs/httpd.pid
-rm -f /var/run/httpd/httpd.pid
+rm -f ${HTTPD_PID_DIR}/httpd.pid
 
 exec httpd -DFOREGROUND
