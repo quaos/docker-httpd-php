@@ -1,12 +1,14 @@
 FROM alpine:3.7
-MAINTAINER support@ucconnect.co.th
+MAINTAINER chakrit_w@icloud.com
 
 LABEL name=httpd-2.4-php7-alpine
 LABEL version=1.0.0
-LABEL author=chakrit@ucconnect.co.th
+LABEL author=chakrit_w@icloud.com
 
 ARG HTTPD_EXTRA_CONFIGURE_ARGS=""
 ARG PHP_EXTRA_CONFIGURE_ARGS=""
+ARG SRC_PATH_PREFIX=""
+#"2.4/alpine/"
 
 # ensure www-data user exists
 RUN set -x \
@@ -21,8 +23,9 @@ RUN set -x \
 
 RUN apk update; \
     apk add --no-cache \
-    wget tar bzip2 perl gnupg \
+    wget tar bzip2 perl openssl gnupg \
     ca-certificates coreutils dpkg
+    
 # }
 
 RUN mkdir -p /usr/src
@@ -156,7 +159,7 @@ RUN set -eux; \
 	apk add --virtual .httpd-rundeps $runDeps
 	# apk del .build-deps
 
-COPY httpd-foreground /usr/local/bin/
+COPY ${SRC_PATH_PREFIX}httpd-foreground /usr/local/bin/
 
 RUN chown www-data:www-data /usr/local/bin/httpd-foreground; \
     chmod 755 /usr/local/bin/httpd-foreground; \
@@ -170,16 +173,16 @@ RUN chown www-data:www-data /usr/local/bin/httpd-foreground; \
 #WORKDIR /usr/src
 
 ENV PHP_VERSION 7.2.7
-#ENV PHP_MIRROR "ca1.php.net"
+ENV PHP_MIRROR "ca1.php.net"
 ENV PHP_BASE_DIR /opt/php-${PHP_VERSION}
 ENV PHP_INI_DIR ${PHP_BASE_DIR}/lib
 
 RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O php-${PHP_VERSION}.tar.gz; \
-    && tar -xzvf php-${PHP_VERSION}.tar.gz; \
-    && cd php-${PHP_VERSION}; \
-    && mkdir -p ${PHP_BASE_DIR}; \
-    && mkdir -p ${PHP_INI_DIR}; \
-    && ./configure \
+    tar -xzvf php-${PHP_VERSION}.tar.gz; \
+    cd php-${PHP_VERSION}; \
+    mkdir -p ${PHP_BASE_DIR}; \
+    mkdir -p ${PHP_INI_DIR}; \
+    ./configure \
         --prefix="${PHP_BASE_DIR}" \
         --with-config-file-path="${PHP_INI_DIR}" \
 	--with-config-file-scan-dir="${PHP_INI_DIR}/conf.d" \
@@ -198,16 +201,16 @@ RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O 
         --enable-fpm  \
         --enable-opcache \
 	${PHP_EXTRA_CONFIGURE_ARGS}; \
-    && make -j "$(getconf _NPROCESSORS_ONLN)"; \
-    && make install; \
-    && { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
-    && cp php.ini-production ${PHP_INI_DIR}/php.ini; \
-    && cp ${PHP_BASE_DIR}/etc/php-fpm.conf.default ${PHP_BASE_DIR}/etc/php-fpm.conf; \
-    && cp ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf.default ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf; \
-    && make clean; \
-    && cd ..; \
-    && rm -r php-${PHP_VERSION}; \
-    && runDeps="$( \
+    make -j "$(getconf _NPROCESSORS_ONLN)"; \
+    make install; \
+    { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
+    cp php.ini-production ${PHP_INI_DIR}/php.ini; \
+    cp ${PHP_BASE_DIR}/etc/php-fpm.conf.default ${PHP_BASE_DIR}/etc/php-fpm.conf; \
+    cp ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf.default ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf; \
+    make clean; \
+    cd ..; \
+    rm -r php-${PHP_VERSION}; \
+    runDeps="$( \
             scanelf --needed --nobanner --recursive /usr/local \
                     | awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
                     | sort -u \
@@ -215,17 +218,20 @@ RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O 
                     | sort -u \
     )"; \
     apk add --no-cache --virtual .php-rundeps $runDeps
-    
+
+COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf ${HTTPD_PREFIX}/etc/conf.d/
+RUN sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_BASE_DIR}/etc/php-fpm.conf
+
+RUN chown www-data:www-data /usr/bin/php-fpm; \
+    chmod 755 /usr/bin/php-fpm; \
+    chown -R www-data:www-data ${PHP_BASE_DIR}
+
 # }
 
 # Set configurations for Apache HTTPD & PHP/FPM {
 # Reference: https://github.com/smrutiranjantripathy/alpine-apache-php-fpm
 
-COPY 00-httpd-fpm.conf ${HTTPD_PREFIX}/etc/conf.d/
-
-RUN sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_BASE_DIR}/etc/php-fpm.conf
-
-COPY www.conf ${PHP_BASE_DIR}/etc/php-fpm.d/
+COPY ${SRC_PATH_PREFIX}www.conf ${PHP_BASE_DIR}/etc/php-fpm.d/
 
 # }
 
@@ -234,7 +240,7 @@ RUN apk del .build-deps
 # Install additional tools {
 
 RUN apk add --no-cache \
-    curl nano vim
+    curl nano vim net-tools traceroute
     
 # }
 
