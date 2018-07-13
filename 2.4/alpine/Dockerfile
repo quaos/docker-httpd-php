@@ -1,4 +1,12 @@
 FROM alpine:3.7
+MAINTAINER support@ucconnect.co.th
+
+LABEL name=httpd-2.4-php7-alpine
+LABEL version=1.0.0
+LABEL author=chakrit@ucconnect.co.th
+
+ARG HTTPD_EXTRA_CONFIGURE_ARGS=""
+ARG PHP_EXTRA_CONFIGURE_ARGS=""
 
 # ensure www-data user exists
 RUN set -x \
@@ -9,7 +17,14 @@ RUN set -x \
 # http://git.alpinelinux.org/cgit/aports/tree/main/lighttpd/lighttpd.pre-install?h=v3.3.2
 # http://git.alpinelinux.org/cgit/aports/tree/main/nginx-initscripts/nginx-initscripts.pre-install?h=v3.3.2
 
-RUN apk update
+# Install prerequisite tools {
+
+RUN apk update; \
+    apk add --no-cache \
+    wget tar bzip2 perl gnupg \
+    ca-certificates coreutils dpkg
+# }
+
 RUN mkdir -p /usr/src
 
 WORKDIR /usr/src
@@ -28,8 +43,8 @@ RUN mkdir -p "${HTTPD_PREFIX}" \
 # https://httpd.apache.org/security/vulnerabilities_24.html
 ENV HTTPD_PATCHES=""
 
-ENV APACHE_DIST_URLS \
 # https://issues.apache.org/jira/browse/INFRA-8753?focusedCommentId=14735394#comment-14735394
+ENV APACHE_DIST_URLS \
 	https://www.apache.org/dyn/closer.cgi?action=download&filename= \
 # if the version is outdated (or we're grabbing the .asc file), we might have to pull from the dist/archive :/
 	https://www-us.apache.org/dist/ \
@@ -38,42 +53,19 @@ ENV APACHE_DIST_URLS \
 
 # see https://httpd.apache.org/docs/2.4/install.html#requirements
 RUN set -eux; \
-	\
 	runDeps=' \
 		apr-dev \
 		apr-util-dev \
 		apr-util-ldap \
-		tar bzip2 perl \
-                wget curl nano vim \
+		perl \
 	'; \
-	apk add --no-cache --virtual .build-deps \
-		$runDeps \
-		ca-certificates \
-		coreutils \
-		dpkg-dev dpkg \
-		gcc g++ autoconf make patch \
-		gnupg \
-		libc-dev \
-		# mod_session_crypto
-		libressl \
-		libressl-dev \
-		# mod_proxy_html mod_xml2enc
-		libxml2-dev \
-		# mod_lua
-		lua-dev \
-		# mod_http2
-		nghttp2-dev \
-		pcre-dev libedit-dev \
-		bzip2-dev zlib-dev curl-dev \
-		# mod_deflate
-	; \
-	\
 	ddist() { \
 		local f="$1"; shift; \
 		local distFile="$1"; shift; \
 		local success=""; \
 		local distUrl=""; \
-		for distUrl in "${APACHE_DIST_URLS}"; do \
+                echo "Downloading Apache HTTPD distribution from URLs: ${APACHE_DIST_URLS}"; \
+		for distUrl in ${APACHE_DIST_URLS}; do \
 			if wget -O "$f" "$distUrl$distFile" && [ -s "$f" ]; then \
 				success=1; \
 				break; \
@@ -81,12 +73,10 @@ RUN set -eux; \
 		done; \
 		[ -n "$success" ]; \
 	}; \
-	\
-	ddist 'httpd-${HTTPD_VERSION}.tar.bz2' "httpd/httpd-${HTTPD_VERSION}.tar.bz2"; \
+	ddist "httpd-${HTTPD_VERSION}.tar.bz2" "httpd/httpd-${HTTPD_VERSION}.tar.bz2"; \
 	echo "$HTTPD_SHA256 *httpd-${HTTPD_VERSION}.tar.bz2" | sha256sum -c -; \
-	\
-# see https://httpd.apache.org/download.cgi#verify
-	ddist 'httpd-${HTTPD_VERSION}.tar.bz2.asc' "httpd/httpd-${HTTPD_VERSION}.tar.bz2.asc"; \
+# see https://httpd.apache.org/download.cgi#verify \
+	ddist "httpd-${HTTPD_VERSION}.tar.bz2.asc" "httpd/httpd-${HTTPD_VERSION}.tar.bz2.asc"; \
 	export GNUPGHOME="$(mktemp -d)"; \
 	for key in \
 # gpg: key 791485A8: public key "Jim Jagielski (Release Signing Key) <jim@apache.org>" imported
@@ -102,9 +92,30 @@ RUN set -eux; \
 	done; \
 	gpg --batch --verify httpd-${HTTPD_VERSION}.tar.bz2.asc httpd-${HTTPD_VERSION}.tar.bz2; \
 	rm -rf "$GNUPGHOME" httpd-${HTTPD_VERSION}.tar.bz2.asc; \
+        \
 	mkdir -p httpd-${HTTPD_VERSION}; \
 	tar -xf httpd-${HTTPD_VERSION}.tar.bz2 -C httpd-${HTTPD_VERSION} --strip-components=1; \
 	rm httpd-${HTTPD_VERSION}.tar.bz2; \
+        \
+	apk add --no-cache --virtual .build-deps \
+		$runDeps \
+		gcc g++ autoconf make patch \
+		libc-dev \
+		dpkg-dev \
+		# mod_session_crypto \
+		libressl \
+		libressl-dev \
+		# mod_proxy_html mod_xml2enc \
+		libxml2-dev \
+		# mod_lua \
+		lua-dev \
+		# mod_http2 \
+		# mod_deflate \
+		nghttp2-dev \
+		pcre-dev libedit-dev \
+		bzip2-dev zlib-dev curl-dev \
+	; \
+        \
 	cd httpd-${HTTPD_VERSION}; \
 	patches() { \
 		while [ "$#" -gt 0 ]; do \
@@ -126,7 +137,7 @@ RUN set -eux; \
 		--enable-mpms-shared=all \
                 --enable-proxy --enable-proxy-fcgi \
                 ${HTTPD_EXTRA_CONFIGURE_ARGS}; \
-	; \
+	\
 	make -j "$(nproc)"; \
 	make install; \
 	cd ..; \
@@ -148,8 +159,8 @@ RUN set -eux; \
 COPY httpd-foreground /usr/local/bin/
 
 RUN chown www-data:www-data /usr/local/bin/httpd-foreground; \
-    && chmod 755 /usr/local/bin/httpd-foreground; \
-    && chown -R www-data:www-data ${HTTPD_PREFIX}
+    chmod 755 /usr/local/bin/httpd-foreground; \
+    chown -R www-data:www-data ${HTTPD_PREFIX}
 
 # }
 
@@ -159,10 +170,9 @@ RUN chown www-data:www-data /usr/local/bin/httpd-foreground; \
 #WORKDIR /usr/src
 
 ENV PHP_VERSION 7.2.7
-ENV PHP_MIRROR "ca1.php.net"
+#ENV PHP_MIRROR "ca1.php.net"
 ENV PHP_BASE_DIR /opt/php-${PHP_VERSION}
 ENV PHP_INI_DIR ${PHP_BASE_DIR}/lib
-#ENV PHP_BUILD_CONFIG "--prefix=/opt/php-${PHP_VERSION} --with-pdo-pgsql --with-zlib-dir --with-freetype-dir --enable-mbstring --with-libxml-dir=/usr --enable-soap --enable-calendar --with-curl --with-zlib --with-gd --with-pgsql --disable-rpath --enable-inline-optimization --with-bz2 --with-zlib --enable-sockets --enable-sysvsem --enable-sysvshm --enable-pcntl --enable-mbregex --enable-exif --enable-bcmath --with-mhash --enable-zip --with-pcre-regex --with-pdo-mysql --with-mysqli --with-mysql-sock=/var/run/mysqld/mysqld.sock --with-jpeg-dir=/usr --with-png-dir=/usr --with-openssl --with-fpm-user=www-data --with-fpm-group=www-data --with-libdir=/lib/x86_64-linux-gnu --enable-ftp --with-imap --with-imap-ssl --with-kerberos --with-gettext --with-xmlrpc --with-xsl --enable-opcache --enable-fpm"
 
 RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O php-${PHP_VERSION}.tar.gz; \
     && tar -xzvf php-${PHP_VERSION}.tar.gz; \
@@ -215,9 +225,18 @@ COPY 00-httpd-fpm.conf ${HTTPD_PREFIX}/etc/conf.d/
 
 RUN sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_BASE_DIR}/etc/php-fpm.conf
 
+COPY www.conf ${PHP_BASE_DIR}/etc/php-fpm.d/
+
 # }
 
 RUN apk del .build-deps
+
+# Install additional tools {
+
+RUN apk add --no-cache \
+    curl nano vim
+    
+# }
 
 WORKDIR ${HTTPD_PREFIX}
 
