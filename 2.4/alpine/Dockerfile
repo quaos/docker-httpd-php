@@ -230,6 +230,7 @@ RUN echo "Building: PHP v${PHP_VERSION} ..."; \
 COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf ${HTTPD_PREFIX}/etc/conf.d/
 
 RUN echo "Post-build: PHP v${PHP_VERSION} ..."; \
+    cd php-${PHP_VERSION}; \
     # { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
     cp php.ini-production ${PHP_INI_DIR}/php.ini; \
     cp ${PHP_BASE_DIR}/etc/php-fpm.conf.default ${PHP_BASE_DIR}/etc/php-fpm.conf; \
@@ -259,9 +260,10 @@ RUN echo "Uninstalling build tools ..."; \
     apk del .build-deps
 
 # Install additional tools {
+# traceroute for Alpine is in package: iputils
 
 RUN apk add --no-cache \
-    curl nano vim net-tools traceroute
+    curl nano vim net-tools iputils
     
 # }
 

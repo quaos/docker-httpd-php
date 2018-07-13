@@ -50,7 +50,7 @@ RUN mkdir -p "${HTTPD_PREFIX}" \
     && chown docker:docker "$HTTPD_PREFIX"
 
 WORKDIR ${HTTPD_PREFIX}
-ENV HTTPD_VERSION 2.4.33
+ENV HTTPD_VERSION 2.4
 ENV HTTPD_SHA256 de02511859b00d17845b9abdd1f975d5ccb5d0b280c567da5bf2ad4b70846f05
 
 # https://httpd.apache.org/security/vulnerabilities_24.html
@@ -86,7 +86,9 @@ RUN echo "Installing: PHP v${PHP_VERSION} ..."; \
     install -y php72 php72-php-fpm
 
 RUN echo "Post-install: PHP v${PHP_VERSION} ..."; \
+    #TEST {
     tree -a -F -L 4 ${PHP_BASE_DIR}; \
+    # }
     #sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_BASE_DIR}/etc/php-fpm.conf
     sed -ri \
         -e 's!^;\s*error_log\s*=\s*(.+)$!error_log = /dev/stderr!g' \
