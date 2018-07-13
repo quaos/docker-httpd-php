@@ -34,6 +34,32 @@ RUN mkdir -p /usr/src
 
 WORKDIR /usr/src
 
+# Install build tools {
+
+RUN set -eux; \
+    echo "Installing build tools ..."; \
+    buildDeps=' \
+        gcc g++ autoconf make patch \
+        libc-dev \
+        dpkg-dev \
+        # mod_session_crypto \
+        libressl \
+        libressl-dev \
+        # mod_proxy_html mod_xml2enc \
+        libxml2-dev \
+        # mod_lua \
+        lua-dev \
+        # mod_http2 \
+        # mod_deflate \
+        nghttp2-dev \
+        pcre-dev libedit-dev \
+        bzip2-dev zlib-dev curl-dev \
+    '; \
+    echo "buildDeps: ${buildDeps}"; \
+    apk add --no-cache --virtual .build-deps $buildDeps
+    
+# }
+
 # Install Apache HTTPD {
 
 ENV HTTPD_VERSION 2.4.33
@@ -58,112 +84,95 @@ ENV APACHE_DIST_URLS \
 
 # see https://httpd.apache.org/docs/2.4/install.html#requirements
 RUN set -eux; \
-	runDeps=' \
-		apr-dev \
-		apr-util-dev \
-		apr-util-ldap \
-		perl \
-	'; \
-	ddist() { \
-		local f="$1"; shift; \
-		local distFile="$1"; shift; \
-		local success=""; \
-		local distUrl=""; \
-                echo "Downloading Apache HTTPD distribution from URLs: ${APACHE_DIST_URLS}"; \
-		for distUrl in ${APACHE_DIST_URLS}; do \
-			if wget -O "$f" "$distUrl$distFile" && [ -s "$f" ]; then \
-				success=1; \
-				break; \
-			fi; \
-		done; \
-		[ -n "$success" ]; \
-	}; \
-	ddist "httpd-${HTTPD_VERSION}.tar.bz2" "httpd/httpd-${HTTPD_VERSION}.tar.bz2"; \
-	echo "$HTTPD_SHA256 *httpd-${HTTPD_VERSION}.tar.bz2" | sha256sum -c -; \
+    echo "Downloading sources: HTTPD v${HTTPD_VERSION} ..."; \
+    runDeps=' \
+            apr-dev \
+            apr-util-dev \
+            apr-util-ldap \
+            perl \
+    '; \
+    ddist() { \
+            local f="$1"; shift; \
+            local distFile="$1"; shift; \
+            local success=""; \
+            local distUrl=""; \
+            echo "Downloading Apache HTTPD distribution from URLs: ${APACHE_DIST_URLS}"; \
+            for distUrl in ${APACHE_DIST_URLS}; do \
+                    if wget -O "$f" "$distUrl$distFile" && [ -s "$f" ]; then \
+                            success=1; \
+                            break; \
+                    fi; \
+            done; \
+            [ -n "$success" ]; \
+    }; \
+    ddist "httpd-${HTTPD_VERSION}.tar.bz2" "httpd/httpd-${HTTPD_VERSION}.tar.bz2"; \
+    echo "$HTTPD_SHA256 *httpd-${HTTPD_VERSION}.tar.bz2" | sha256sum -c -; \
 # see https://httpd.apache.org/download.cgi#verify \
-	ddist "httpd-${HTTPD_VERSION}.tar.bz2.asc" "httpd/httpd-${HTTPD_VERSION}.tar.bz2.asc"; \
-	export GNUPGHOME="$(mktemp -d)"; \
-	for key in \
+    ddist "httpd-${HTTPD_VERSION}.tar.bz2.asc" "httpd/httpd-${HTTPD_VERSION}.tar.bz2.asc"; \
+    export GNUPGHOME="$(mktemp -d)"; \
+    for key in \
 # gpg: key 791485A8: public key "Jim Jagielski (Release Signing Key) <jim@apache.org>" imported
-		A93D62ECC3C8EA12DB220EC934EA76E6791485A8 \
+            A93D62ECC3C8EA12DB220EC934EA76E6791485A8 \
 # gpg: key 995E35221AD84DFF: public key "Daniel Ruggeri (http://home.apache.org/~druggeri/) <druggeri@apache.org>" imported
-		B9E8213AEFB861AF35A41F2C995E35221AD84DFF \
-	; do \
-            # Workaround for keyserver issue { \
-            ( gpg --keyserver p80.pool.sks-keyservers.net:80 --recv-keys "$key" \
-              || gpg --keyserver pgp.mit.edu --recv-keys "$key" \
-              || gpg --keyserver keyserver.pgp.com --recv-keys "$key" ) \
-            # } \
-	done; \
-	gpg --batch --verify httpd-${HTTPD_VERSION}.tar.bz2.asc httpd-${HTTPD_VERSION}.tar.bz2; \
-	rm -rf "$GNUPGHOME" httpd-${HTTPD_VERSION}.tar.bz2.asc; \
-        \
-	mkdir -p httpd-${HTTPD_VERSION}; \
-	tar -xf httpd-${HTTPD_VERSION}.tar.bz2 -C httpd-${HTTPD_VERSION} --strip-components=1; \
-	rm httpd-${HTTPD_VERSION}.tar.bz2; \
-        \
-	apk add --no-cache --virtual .build-deps \
-		$runDeps \
-		gcc g++ autoconf make patch \
-		libc-dev \
-		dpkg-dev \
-		# mod_session_crypto \
-		libressl \
-		libressl-dev \
-		# mod_proxy_html mod_xml2enc \
-		libxml2-dev \
-		# mod_lua \
-		lua-dev \
-		# mod_http2 \
-		# mod_deflate \
-		nghttp2-dev \
-		pcre-dev libedit-dev \
-		bzip2-dev zlib-dev curl-dev \
-	; \
-        \
-	cd httpd-${HTTPD_VERSION}; \
-	patches() { \
-		while [ "$#" -gt 0 ]; do \
-			local patchFile="$1"; shift; \
-			local patchSha256="$1"; shift; \
-			ddist "$patchFile" "httpd/patches/apply_to_$HTTPD_VERSION/$patchFile"; \
-			echo "$patchSha256 *$patchFile" | sha256sum -c -; \
-			patch -p0 < "$patchFile"; \
-			rm -f "$patchFile"; \
-		done; \
-	}; \
-	patches $HTTPD_PATCHES; \
-	\
-	gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"; \
-	./configure \
-		--build="$gnuArch" \
-		--prefix="$HTTPD_PREFIX" \
-		--enable-mods-shared=reallyall \
-		--enable-mpms-shared=all \
-                --enable-proxy --enable-proxy-fcgi \
-                ${HTTPD_EXTRA_CONFIGURE_ARGS}; \
-	\
-	make -j "$(nproc)"; \
-	make install; \
-	cd ..; \
-	rm -r httpd-${HTTPD_VERSION}; \
-	sed -ri \
-		-e 's!^(\s*CustomLog)\s+\S+!\1 /proc/self/fd/1!g' \
-		-e 's!^(\s*ErrorLog)\s+\S+!\1 /proc/self/fd/2!g' \
-		"$HTTPD_PREFIX/conf/httpd.conf"; \
-	\
-	runDeps="$runDeps $( \
-		scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
-			| tr ',' '\n' \
-			| sort -u \
-			| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
-	)"; \
-	apk add --virtual .httpd-rundeps $runDeps
-	# apk del .build-deps
-
+            B9E8213AEFB861AF35A41F2C995E35221AD84DFF \
+    ; do \
+        # Workaround for keyserver issue { \
+        ( gpg --keyserver p80.pool.sks-keyservers.net:80 --recv-keys "$key" \
+          || gpg --keyserver pgp.mit.edu --recv-keys "$key" \
+          || gpg --keyserver keyserver.pgp.com --recv-keys "$key" ) \
+        # } \
+    done; \
+    gpg --batch --verify httpd-${HTTPD_VERSION}.tar.bz2.asc httpd-${HTTPD_VERSION}.tar.bz2; \
+    rm -rf "$GNUPGHOME" httpd-${HTTPD_VERSION}.tar.bz2.asc; \
+    \
+    mkdir -p httpd-${HTTPD_VERSION}; \
+    tar -xf httpd-${HTTPD_VERSION}.tar.bz2 -C httpd-${HTTPD_VERSION} --strip-components=1; \
+    rm httpd-${HTTPD_VERSION}.tar.bz2; \
+    cd httpd-${HTTPD_VERSION}; \
+    patches() { \
+            while [ "$#" -gt 0 ]; do \
+                    local patchFile="$1"; shift; \
+                    local patchSha256="$1"; shift; \
+                    ddist "$patchFile" "httpd/patches/apply_to_$HTTPD_VERSION/$patchFile"; \
+                    echo "$patchSha256 *$patchFile" | sha256sum -c -; \
+                    patch -p0 < "$patchFile"; \
+                    rm -f "$patchFile"; \
+            done; \
+    }; \
+    patches $HTTPD_PATCHES
+    
+RUN echo "Building: HTTPD v${HTTPD_VERSION} ..."; \
+    cd httpd-${HTTPD_VERSION}; \
+    gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"; \
+    ./configure \
+            --build="$gnuArch" \
+            --prefix="$HTTPD_PREFIX" \
+            --enable-mods-shared=reallyall \
+            --enable-mpms-shared=all \
+            --enable-proxy --enable-proxy-fcgi \
+            ${HTTPD_EXTRA_CONFIGURE_ARGS}; \
+    \
+    make -j "$(nproc)"; \
+    make install
+    
 COPY ${SRC_PATH_PREFIX}httpd-foreground /usr/local/bin/
 
-RUN chown www-data:www-data /usr/local/bin/httpd-foreground; \
+RUN echo "Post-build: HTTPD v${HTTPD_VERSION} ..."; \
+    cd ..; \
+    rm -r httpd-${HTTPD_VERSION}; \
+    sed -ri \
+            -e 's!^(\s*CustomLog)\s+\S+!\1 /proc/self/fd/1!g' \
+            -e 's!^(\s*ErrorLog)\s+\S+!\1 /proc/self/fd/2!g' \
+            "$HTTPD_PREFIX/conf/httpd.conf"; \
+    \
+    runDeps="$runDeps $( \
+            scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
+                    | tr ',' '\n' \
+                    | sort -u \
+                    | awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
+    )"; \
+    apk add --virtual .httpd-rundeps $runDeps; \
+    chown www-data:www-data /usr/local/bin/httpd-foreground; \
     chmod 755 /usr/local/bin/httpd-foreground; \
     chown -R www-data:www-data ${HTTPD_PREFIX}
 
@@ -179,11 +188,14 @@ ENV PHP_MIRROR "ca1.php.net"
 ENV PHP_BASE_DIR /opt/php-${PHP_VERSION}
 ENV PHP_INI_DIR ${PHP_BASE_DIR}/lib
 
-RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O php-${PHP_VERSION}.tar.gz; \
+RUN echo "Downloading sources: PHP v${PHP_VERSION} ..."; \
+    wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O php-${PHP_VERSION}.tar.gz; \
     tar -xzvf php-${PHP_VERSION}.tar.gz; \
-    cd php-${PHP_VERSION}; \
     mkdir -p ${PHP_BASE_DIR}; \
-    mkdir -p ${PHP_INI_DIR}; \
+    mkdir -p ${PHP_INI_DIR}
+
+RUN echo "Building: PHP v${PHP_VERSION} ..."; \
+    cd php-${PHP_VERSION}; \
     ./configure \
         --prefix="${PHP_BASE_DIR}" \
         --with-config-file-path="${PHP_INI_DIR}" \
@@ -204,7 +216,11 @@ RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O 
         --enable-opcache \
 	${PHP_EXTRA_CONFIGURE_ARGS}; \
     make -j "$(getconf _NPROCESSORS_ONLN)"; \
-    make install; \
+    make install
+    
+COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf ${HTTPD_PREFIX}/etc/conf.d/
+
+RUN echo "Post-build: PHP v${PHP_VERSION} ..."; \
     { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
     cp php.ini-production ${PHP_INI_DIR}/php.ini; \
     cp ${PHP_BASE_DIR}/etc/php-fpm.conf.default ${PHP_BASE_DIR}/etc/php-fpm.conf; \
@@ -212,6 +228,11 @@ RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O 
     make clean; \
     cd ..; \
     rm -r php-${PHP_VERSION}; \
+    # sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_BASE_DIR}/etc/php-fpm.conf
+    sed -ri \
+        -e 's!^;\s*error_log\s*=\s*(.+)$!error_log = /dev/stderr!g' \
+        "${PHP_BASE_DIR}/etc/php-fpm.conf"; \
+    \
     runDeps="$( \
             scanelf --needed --nobanner --recursive /usr/local \
                     | awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
@@ -219,12 +240,8 @@ RUN wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O 
                     | xargs -r apk info --installed \
                     | sort -u \
     )"; \
-    apk add --no-cache --virtual .php-rundeps $runDeps
-
-COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf ${HTTPD_PREFIX}/etc/conf.d/
-RUN sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_BASE_DIR}/etc/php-fpm.conf
-
-RUN chown www-data:www-data /usr/bin/php-fpm; \
+    apk add --no-cache --virtual .php-rundeps $runDeps; \
+    chown www-data:www-data /usr/bin/php-fpm; \
     chmod 755 /usr/bin/php-fpm; \
     chown -R www-data:www-data ${PHP_BASE_DIR}
 
@@ -237,7 +254,8 @@ COPY ${SRC_PATH_PREFIX}www.conf ${PHP_BASE_DIR}/etc/php-fpm.d/
 
 # }
 
-RUN apk del .build-deps
+RUN echo "Uninstalling build tools ..."; \
+    apk del .build-deps
 
 # Install additional tools {
 

@@ -11,23 +11,25 @@ ARG SRC_PATH_PREFIX="2.4/atomic/"
 
 USER 0
 
+WORKDIR /
+
 # Install prerequisite tools {
 
 RUN microdnf update; \
     # microdnf check-update --security; \
     microdnf --enablerepo=rhel-7-server-rpms \
-    install -y sudo wget tar bzip2 perl openssl gnupg; \
-    wget http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-    # rpm -ivh epel-release-latest-7.noarch.rpm
+    install -y sudo wget tar bzip2 perl openssl gnupg
     
 # }
 
 # Install build tools {
 
 RUN set -eux; \
+    echo "Installing build tools ..."; \
     buildDeps=' \
         gcc-c++ gcc libstdc++ libgcc glibc make python \
     '; \
+    echo "buildDeps: ${buildDeps}"; \
     microdnf --enablerepo=rhel-7-server-rpms \
     install -y $buildDeps \
     libselinux-utils systemd-sysv scl-utils policycoreutils-python \
@@ -53,12 +55,14 @@ ENV HTTPD_SHA256 de02511859b00d17845b9abdd1f975d5ccb5d0b280c567da5bf2ad4b70846f0
 
 # https://httpd.apache.org/security/vulnerabilities_24.html
 ENV HTTPD_PATCHES=""
-RUN microdnf --enablerepo=rhel-7-server-rpms \
+RUN echo "Installing: HTTPD v${HTTPD_VERSION} ..."; \
+    microdnf --enablerepo=rhel-7-server-rpms \
     install -y httpd
 
 COPY ${SRC_PATH_PREFIX}httpd-foreground /usr/local/bin/
 
-RUN chown docker:docker /usr/local/bin/httpd-foreground; \
+RUN echo "Post-install: HTTPD v${HTTPD_VERSION} ..."; \
+    chown docker:docker /usr/local/bin/httpd-foreground; \
     chmod 755 /usr/local/bin/httpd-foreground; \
     chown -R docker:docker ${HTTPD_PREFIX}
 
@@ -66,14 +70,26 @@ RUN chown docker:docker /usr/local/bin/httpd-foreground; \
 
 # Install PHP 7.2 {
 
-WORKDIR /
+ENV PHP_VERSION 7.2
+ENV PHP_BASE_DIR /opt/remi/php72
+ENV PHP_INI_DIR ${PHP_BASE_DIR}/lib
 
-RUN wget http://rpms.remirepo.net/enterprise/remi-release-7.rpm \
-    && rpm -ivh remi-release-7.rpm \
-    && microdnf --enablerepo=remi-php72 \
+#WORKDIR /
+
+RUN echo "Installing: PHP v${PHP_VERSION} ..."; \
+    wget http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm; \
+    rpm -ivh epel-release-latest-7.noarch.rpm; \
+    wget http://rpms.remirepo.net/enterprise/remi-release-7.rpm; \
+    rpm -ivh remi-release-7.rpm; \
+    microdnf --enablerepo=remi-php72 \
     install -y php72 php72-php-fpm
 
-RUN sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_BASE_DIR}/etc/php-fpm.conf
+RUN echo "Post-install: PHP v${PHP_VERSION} ..."; \
+    #sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_BASE_DIR}/etc/php-fpm.conf
+    sed -ri \
+        -e 's!^;\s*error_log\s*=\s*(.+)$!error_log = /dev/stderr!g' \
+        "${PHP_BASE_DIR}/etc/php-fpm.conf"
+    
 COPY ${SRC_PATH_PREFIX}www.conf ${PHP_BASE_DIR}/etc/php-fpm.d/
 
 RUN chown docker:docker /usr/bin/php-fpm; \
