@@ -14,9 +14,9 @@ USER 0
 # Install prerequisite tools {
 
 RUN microdnf update; \
-    # microdnf check-update --security
+    # microdnf check-update --security; \
     microdnf --enablerepo=rhel-7-server-rpms \
-    install -y sudo wget tar bzip2 perl openssl gnupg;
+    install -y sudo wget tar bzip2 perl openssl gnupg; \
     wget http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     # rpm -ivh epel-release-latest-7.noarch.rpm
     
@@ -26,7 +26,7 @@ RUN microdnf update; \
 
 RUN set -eux; \
     buildDeps=' \
-        gcc-c++ gcc libstdc++ libgcc glibc make python
+        gcc-c++ gcc libstdc++ libgcc glibc make python \
     '; \
     microdnf --enablerepo=rhel-7-server-rpms \
     install -y $buildDeps \
