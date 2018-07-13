@@ -230,7 +230,7 @@ RUN echo "Building: PHP v${PHP_VERSION} ..."; \
 COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf ${HTTPD_PREFIX}/etc/conf.d/
 
 RUN echo "Post-build: PHP v${PHP_VERSION} ..."; \
-    { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
+    # { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
     cp php.ini-production ${PHP_INI_DIR}/php.ini; \
     cp ${PHP_BASE_DIR}/etc/php-fpm.conf.default ${PHP_BASE_DIR}/etc/php-fpm.conf; \
     cp ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf.default ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf; \

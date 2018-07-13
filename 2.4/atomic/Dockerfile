@@ -18,7 +18,7 @@ WORKDIR /
 RUN microdnf update; \
     # microdnf check-update --security; \
     microdnf --enablerepo=rhel-7-server-rpms \
-    install -y sudo wget tar bzip2 perl openssl gnupg
+    install -y sudo wget tar bzip2 perl openssl gnupg tree
     
 # }
 
@@ -62,6 +62,7 @@ RUN echo "Installing: HTTPD v${HTTPD_VERSION} ..."; \
 COPY ${SRC_PATH_PREFIX}httpd-foreground /usr/local/bin/
 
 RUN echo "Post-install: HTTPD v${HTTPD_VERSION} ..."; \
+    tree -a -F -L 4 ${HTTPD_PREFIX}; \
     chown docker:docker /usr/local/bin/httpd-foreground; \
     chmod 755 /usr/local/bin/httpd-foreground; \
     chown -R docker:docker ${HTTPD_PREFIX}
@@ -85,10 +86,12 @@ RUN echo "Installing: PHP v${PHP_VERSION} ..."; \
     install -y php72 php72-php-fpm
 
 RUN echo "Post-install: PHP v${PHP_VERSION} ..."; \
+    tree -a -F -L 4 ${PHP_BASE_DIR}; \
     #sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_BASE_DIR}/etc/php-fpm.conf
     sed -ri \
         -e 's!^;\s*error_log\s*=\s*(.+)$!error_log = /dev/stderr!g' \
-        "${PHP_BASE_DIR}/etc/php-fpm.conf"
+        "${PHP_BASE_DIR}/etc/php-fpm.conf" \
+        || true
     
 COPY ${SRC_PATH_PREFIX}www.conf ${PHP_BASE_DIR}/etc/php-fpm.d/
 
