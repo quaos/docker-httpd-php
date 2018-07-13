@@ -69,8 +69,8 @@ COPY ${SRC_PATH_PREFIX}httpd-foreground /usr/local/bin/
 RUN echo "Post-install: HTTPD v${HTTPD_VERSION} ..."; \
     tree -a -F -L 4 ${HTTPD_PREFIX}; \
     sed -ri \
-        -e 's!^;\s*User\s*(.+)$!User docker!g' \
-        -e 's!^;\s*Group\s*(.+)$!Group docker!g' \
+        -e 's!^(\s*User)\s+(.+)$!\1 docker!g' \
+        -e 's!^(\s*Group)\s+(.+)$!\1 docker!g' \
         # -e 's!^;\s*DocumentRoot\s*(.+)$!DocumentRoot ${WWW_ROOT}!g' \
         "${HTTPD_CONF_DIR}/httpd.conf"; \
     chown docker:docker /usr/local/bin/httpd-foreground; \
@@ -90,7 +90,8 @@ ENV PHP_BASE_DIR /opt/remi/php72
 ENV PHP_CONF_DIR /etc/opt/remi/php72
 ENV PHP_PID_DIR /var/opt/remi/php72/run
 ENV PHP_LOG_DIR /var/opt/remi/php72/log
-ENV PHP_INI_DIR ${PHP_BASE_DIR}/lib
+ENV PHP_INI_DIR ${PHP_CONF_DIR}
+ENV PHPFPM_BIN_DIR ${PHP_BASE_DIR}/root/usr/sbin
 
 #WORKDIR /
 
@@ -110,10 +111,10 @@ RUN echo "Post-install: PHP v${PHP_VERSION} ..."; \
     # }
     #sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_CONF_DIR}/php-fpm.conf
     sed -ri \
-        -e 's!^;\s*error_log\s*=\s*(.+)$!error_log = /dev/stderr!g' \
+        -e 's!^;(\s*error_log)\s*=\s*(.+)$!\1 = /dev/stderr!g' \
         "${PHP_CONF_DIR}/php-fpm.conf"; \
-    chown docker:docker /usr/bin/php-fpm; \
-    chmod 755 /usr/bin/php-fpm; \
+    chown docker:docker ${PHPFPM_BIN_DIR}/php-fpm; \
+    chmod 755 ${PHPFPM_BIN_DIR}/php-fpm; \
     chown -R docker:docker ${PHP_BASE_DIR}; \
     chown -R docker:docker ${PHP_CONF_DIR}; \
     chown -R docker:docker ${PHP_PID_DIR}; \
@@ -131,7 +132,7 @@ RUN \
 # Set configurations for Apache HTTPD & PHP/FPM {
 # Reference: https://github.com/smrutiranjantripathy/alpine-apache-php-fpm
 
-COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf ${HTTPD_PREFIX}/etc/conf.d/
+COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf ${HTTPD_CONF_D_DIR}/
 
 # }
 
