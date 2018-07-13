@@ -85,12 +85,6 @@ ENV APACHE_DIST_URLS \
 # see https://httpd.apache.org/docs/2.4/install.html#requirements
 RUN set -eux; \
     echo "Downloading sources: HTTPD v${HTTPD_VERSION} ..."; \
-    runDeps=' \
-            apr-dev \
-            apr-util-dev \
-            apr-util-ldap \
-            perl \
-    '; \
     ddist() { \
             local f="$1"; shift; \
             local distFile="$1"; shift; \
@@ -143,6 +137,13 @@ RUN set -eux; \
     
 RUN echo "Building: HTTPD v${HTTPD_VERSION} ..."; \
     cd httpd-${HTTPD_VERSION}; \
+    runDeps=' \
+            apr-dev \
+            apr-util-dev \
+            apr-util-ldap \
+            perl \
+    '; \
+    apk add --virtual $runDeps; \
     gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"; \
     ./configure \
             --build="$gnuArch" \
@@ -153,7 +154,14 @@ RUN echo "Building: HTTPD v${HTTPD_VERSION} ..."; \
             ${HTTPD_EXTRA_CONFIGURE_ARGS}; \
     \
     make -j "$(nproc)"; \
-    make install
+    make install; \
+    runDeps="$runDeps $( \
+            scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
+                    | tr ',' '\n' \
+                    | sort -u \
+                    | awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
+    )"; \
+    apk add --virtual .httpd-rundeps $runDeps
     
 COPY ${SRC_PATH_PREFIX}httpd-foreground /usr/local/bin/
 
@@ -165,13 +173,6 @@ RUN echo "Post-build: HTTPD v${HTTPD_VERSION} ..."; \
             -e 's!^(\s*ErrorLog)\s+\S+!\1 /proc/self/fd/2!g' \
             "$HTTPD_PREFIX/conf/httpd.conf"; \
     \
-    runDeps="$runDeps $( \
-            scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
-                    | tr ',' '\n' \
-                    | sort -u \
-                    | awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
-    )"; \
-    apk add --virtual .httpd-rundeps $runDeps; \
     chown www-data:www-data /usr/local/bin/httpd-foreground; \
     chmod 755 /usr/local/bin/httpd-foreground; \
     chown -R www-data:www-data ${HTTPD_PREFIX}
@@ -216,7 +217,15 @@ RUN echo "Building: PHP v${PHP_VERSION} ..."; \
         --enable-opcache \
 	${PHP_EXTRA_CONFIGURE_ARGS}; \
     make -j "$(getconf _NPROCESSORS_ONLN)"; \
-    make install
+    make install; \
+    runDeps="$( \
+            scanelf --needed --nobanner --recursive /usr/local \
+                    | awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
+                    | sort -u \
+                    | xargs -r apk info --installed \
+                    | sort -u \
+    )"; \
+    apk add --no-cache --virtual .php-rundeps $runDeps
     
 COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf ${HTTPD_PREFIX}/etc/conf.d/
 
@@ -233,14 +242,6 @@ RUN echo "Post-build: PHP v${PHP_VERSION} ..."; \
         -e 's!^;\s*error_log\s*=\s*(.+)$!error_log = /dev/stderr!g' \
         "${PHP_BASE_DIR}/etc/php-fpm.conf"; \
     \
-    runDeps="$( \
-            scanelf --needed --nobanner --recursive /usr/local \
-                    | awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
-                    | sort -u \
-                    | xargs -r apk info --installed \
-                    | sort -u \
-    )"; \
-    apk add --no-cache --virtual .php-rundeps $runDeps; \
     chown www-data:www-data /usr/bin/php-fpm; \
     chmod 755 /usr/bin/php-fpm; \
     chown -R www-data:www-data ${PHP_BASE_DIR}
