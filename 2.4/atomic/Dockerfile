@@ -44,6 +44,11 @@ RUN groupadd docker \
 # Install Apache HTTPD {
 
 ENV HTTPD_PREFIX /usr/local/apache2
+ENV HTTPD_CONF_DIR /etc/httpd/conf
+ENV HTTPD_CONF_D_DIR /etc/httpd/conf.d
+ENV HTTPD_PID_DIR /var/run/httpd
+ENV HTTPD_LOG_DIR /var/log/httpd
+ENV WWW_ROOT /var/www/html
 ENV PATH $HTTPD_PREFIX/bin:$PATH
 
 RUN mkdir -p "${HTTPD_PREFIX}" \
@@ -63,16 +68,28 @@ COPY ${SRC_PATH_PREFIX}httpd-foreground /usr/local/bin/
 
 RUN echo "Post-install: HTTPD v${HTTPD_VERSION} ..."; \
     tree -a -F -L 4 ${HTTPD_PREFIX}; \
+    sed -ri \
+        -e 's!^;\s*User\s*(.+)$!User docker!g' \
+        -e 's!^;\s*Group\s*(.+)$!Group docker!g' \
+        # -e 's!^;\s*DocumentRoot\s*(.+)$!DocumentRoot ${WWW_ROOT}!g' \
+        "${HTTPD_CONF_DIR}/httpd.conf"; \
     chown docker:docker /usr/local/bin/httpd-foreground; \
     chmod 755 /usr/local/bin/httpd-foreground; \
-    chown -R docker:docker ${HTTPD_PREFIX}
-
+    chown -R docker:docker ${HTTPD_PREFIX}; \
+    chown -R docker:docker ${HTTPD_CONF_DIR}; \
+    chown -R docker:docker ${HTTPD_CONF_D_DIR}; \
+    chown -R docker:docker ${HTTPD_PID_DIR}; \
+    chown -R docker:docker ${HTTPD_LOG_DIR}
+    
 # }
 
 # Install PHP 7.2 {
 
 ENV PHP_VERSION 7.2
 ENV PHP_BASE_DIR /opt/remi/php72
+ENV PHP_CONF_DIR /etc/opt/remi/php72
+ENV PHP_PID_DIR /var/opt/remi/php72/run
+ENV PHP_LOG_DIR /var/opt/remi/php72/log
 ENV PHP_INI_DIR ${PHP_BASE_DIR}/lib
 
 #WORKDIR /
@@ -84,22 +101,26 @@ RUN echo "Installing: PHP v${PHP_VERSION} ..."; \
     rpm -ivh remi-release-7.rpm; \
     microdnf --enablerepo=remi-php72 \
     install -y php72 php72-php-fpm
+    
+COPY ${SRC_PATH_PREFIX}www.conf ${PHP_CONF_DIR}/php-fpm.d/
 
 RUN echo "Post-install: PHP v${PHP_VERSION} ..."; \
     #TEST {
     tree -a -F -L 4 ${PHP_BASE_DIR}; \
     # }
-    #sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_BASE_DIR}/etc/php-fpm.conf
+    #sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_CONF_DIR}/php-fpm.conf
     sed -ri \
         -e 's!^;\s*error_log\s*=\s*(.+)$!error_log = /dev/stderr!g' \
-        "${PHP_BASE_DIR}/etc/php-fpm.conf" \
-        || true
-    
-COPY ${SRC_PATH_PREFIX}www.conf ${PHP_BASE_DIR}/etc/php-fpm.d/
-
-RUN chown docker:docker /usr/bin/php-fpm; \
+        "${PHP_CONF_DIR}/php-fpm.conf"; \
+    chown docker:docker /usr/bin/php-fpm; \
     chmod 755 /usr/bin/php-fpm; \
-    chown -R docker:docker ${PHP_BASE_DIR}
+    chown -R docker:docker ${PHP_BASE_DIR}; \
+    chown -R docker:docker ${PHP_CONF_DIR}; \
+    chown -R docker:docker ${PHP_PID_DIR}; \
+    chown -R docker:docker ${PHP_LOG_DIR}; \
+    cd ${PHP_BASE_DIR}; \
+    chmod 755 enable; \
+    ./enable
 
 # }
 
@@ -125,6 +146,6 @@ WORKDIR ${HTTPD_PREFIX}
 
 EXPOSE 80
 
-USER docker
+#USER docker
 
 CMD ["httpd-foreground"]
