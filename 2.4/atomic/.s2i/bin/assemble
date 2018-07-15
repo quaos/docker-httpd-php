@@ -1,0 +1,49 @@
+#!/bin/bash
+
+set -e
+
+shopt -s dotglob
+echo "---> Installing application source..."
+mv -v /tmp/src/* ./
+mv -v ./httpd-foreground /usr/local/bin
+chmod 755 /usr/local/bin/httpd-foreground
+
+chmod +x build-image.sh
+./build-image.sh prereqs
+./build-image.sh build-tools
+
+./build-image.sh httpd
+./build-image.sh php
+mv -v ./www.conf ${PHP_CONF_DIR}/php-fpm.d/
+
+./build-image.sh config
+mv -v ./00-httpd-fpm.conf ${HTTPD_CONF_D_DIR}/
+
+./build-image.sh extra-tools
+./build-image.sh cleanup
+
+if [ -f composer.json ]; then
+  echo "Found 'composer.json', installing dependencies using composer.phar... "
+
+  # Install Composer
+  curl https://getcomposer.org/installer | php
+
+  # Change the repo mirror if provided
+  if [ -n "$COMPOSER_MIRROR" ]; then
+    ./composer.phar config -g repositories.packagist composer $COMPOSER_MIRROR
+  fi
+
+  # Install App dependencies using Composer
+  ./composer.phar install --no-interaction --no-ansi --optimize-autoloader
+
+  if [ ! -f composer.lock ]; then
+    echo -e "\nConsider adding a 'composer.lock' file into your source repository.\n"
+  fi
+fi
+
+# Fix source directory permissions
+fix-permissions ./
+
+rm -fR ./build-image.sh
+#rm -fR /tmp/src
+

@@ -1,0 +1,2 @@
+_HTTPD_CONFIGURATION_PATH=/opt/app-root/etc/conf.d
+_DOCUMENTROOT=/opt/app-root/src
