@@ -175,7 +175,7 @@ RUN echo "## HTTPD installed files {"; \
     
 COPY ${SRC_PATH_PREFIX}httpd-foreground /usr/local/bin/
 
-ENV HTTPD_CONF_DIR "${HTTPD_PREFIX}/etc/conf"
+ENV HTTPD_CONF_DIR "${HTTPD_PREFIX}/etc"
 ENV HTTPD_CONF_D_DIR "${HTTPD_PREFIX}/etc/conf.d"
 ENV HTTPD_PID_DIR "/var/run/httpd" 
 ENV HTTPD_LOG_DIR "/var/log/httpd"
