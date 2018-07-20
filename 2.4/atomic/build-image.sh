@@ -166,5 +166,6 @@ cleanup)
     ;;
 *)
     echo "usage: build-image.sh (all|prereqs|build-tools|httpd|php|config|extra-tools|cleanup)"
-    exit -1;
+    exit -1
+    ;;
 esac

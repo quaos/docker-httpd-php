@@ -9,6 +9,7 @@ ARG HTTPD_EXTRA_CONFIGURE_ARGS=""
 ARG PHP_EXTRA_CONFIGURE_ARGS=""
 ARG SRC_PATH_PREFIX=""
 #"2.4/alpine/"
+ARG HTTP_PORT=8080
 
 # ensure www-data user exists
 RUN set -x; \
@@ -22,11 +23,12 @@ RUN set -x; \
 # http://git.alpinelinux.org/cgit/aports/tree/main/nginx-initscripts/nginx-initscripts.pre-install?h=v3.3.2
 
 # Install prerequisite tools {
-
-RUN apk update; \
+RUN echo "## Installing prerequisites {"; \
+    apk update; \
     apk add --no-cache \
-    wget tar bzip2 perl openssl gnupg \
-    ca-certificates coreutils dpkg
+    wget tar bzip2 perl openssl gnupg tree \
+    ca-certificates coreutils dpkg; \
+    echo "## }"
     
 # }
 
@@ -36,8 +38,7 @@ WORKDIR /usr/src
 
 # Install build tools {
 
-RUN set -eux; \
-    echo "Installing build tools ..."; \
+RUN echo "## Installing build tools {"; \
     buildDeps=' \
         gcc g++ autoconf make patch \
         libc-dev \
@@ -56,7 +57,8 @@ RUN set -eux; \
         bzip2-dev zlib-dev curl-dev \
     '; \
     echo "buildDeps: ${buildDeps}"; \
-    apk add --no-cache --virtual .build-deps $buildDeps
+    apk add --no-cache --virtual .build-deps $buildDeps; \
+    echo "## }"
     
 # }
 
@@ -69,7 +71,7 @@ ENV HTTPD_SHA256 de02511859b00d17845b9abdd1f975d5ccb5d0b280c567da5bf2ad4b70846f0
 ENV HTTPD_PREFIX /opt/apache/httpd-${HTTPD_VERSION}
 ENV PATH $HTTPD_PREFIX/bin:$PATH
 RUN mkdir -p "${HTTPD_PREFIX}" \
-	&& chown www-data:www-data "${HTTPD_PREFIX}"
+	&& chown www-data:root "${HTTPD_PREFIX}"
     
 # https://httpd.apache.org/security/vulnerabilities_24.html
 ENV HTTPD_PATCHES=""
@@ -83,8 +85,8 @@ ENV APACHE_DIST_URLS \
 	https://archive.apache.org/dist/
 
 # see https://httpd.apache.org/docs/2.4/install.html#requirements
-RUN set -eux; \
-    echo "Downloading sources: HTTPD v${HTTPD_VERSION} ..."; \
+RUN set -x; \
+    echo "## Downloading sources: HTTPD v${HTTPD_VERSION} {"; \
     ddist() { \
             local f="$1"; shift; \
             local distFile="$1"; shift; \
@@ -119,9 +121,9 @@ RUN set -eux; \
     gpg --batch --verify httpd-${HTTPD_VERSION}.tar.bz2.asc httpd-${HTTPD_VERSION}.tar.bz2; \
     rm -rf "$GNUPGHOME" httpd-${HTTPD_VERSION}.tar.bz2.asc; \
     \
-    mkdir -p httpd-${HTTPD_VERSION}; \
-    tar -xf httpd-${HTTPD_VERSION}.tar.bz2 -C httpd-${HTTPD_VERSION} --strip-components=1; \
-    rm httpd-${HTTPD_VERSION}.tar.bz2; \
+    mkdir -p httpd-${HTTPD_VERSION} && \
+    tar -xf httpd-${HTTPD_VERSION}.tar.bz2 -C httpd-${HTTPD_VERSION} --strip-components=1 && \
+    rm httpd-${HTTPD_VERSION}.tar.bz2 && \
     cd httpd-${HTTPD_VERSION}; \
     patches() { \
             while [ "$#" -gt 0 ]; do \
@@ -133,9 +135,10 @@ RUN set -eux; \
                     rm -f "$patchFile"; \
             done; \
     }; \
-    patches $HTTPD_PATCHES
+    patches $HTTPD_PATCHES; \
+    echo "## }"
     
-RUN echo "Building: HTTPD v${HTTPD_VERSION} ..."; \
+RUN echo "## Building: HTTPD v${HTTPD_VERSION} {"; \
     cd httpd-${HTTPD_VERSION}; \
     runDeps=' \
             apr-dev \
@@ -161,23 +164,52 @@ RUN echo "Building: HTTPD v${HTTPD_VERSION} ..."; \
                     | sort -u \
                     | awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
     )"; \
-    apk add --virtual .httpd-rundeps $runDeps
+    apk add --virtual .httpd-rundeps $runDeps; \
+    echo "## }"
+    
+#TEST {
+RUN echo "## HTTPD installed files {"; \
+    tree -a -F -L 4 "${HTTPD_PREFIX}"; \
+    echo "## }"
+# }
     
 COPY ${SRC_PATH_PREFIX}httpd-foreground /usr/local/bin/
 
-RUN echo "Post-build: HTTPD v${HTTPD_VERSION} ..."; \
+ENV HTTPD_CONF_DIR "${HTTPD_PREFIX}/etc/conf"
+ENV HTTPD_CONF_D_DIR "${HTTPD_PREFIX}/etc/conf.d"
+ENV HTTPD_PID_DIR "/var/run/httpd" 
+ENV HTTPD_LOG_DIR "/var/log/httpd"
+
+RUN echo "## Post-build: HTTPD v${HTTPD_VERSION} {"; \
     cd ..; \
     rm -r httpd-${HTTPD_VERSION}; \
     sed -ri \
+            -e "s/^(\\s*Listen)\\s+(.+)$/\\1 ${HTTP_PORT}/g" \
+            -e 's!^(\s*User)\s+(.+)$!\1 www-data!g' \
+            -e 's!^(\s*Group)\s+(.+)$!\1 www-data!g' \
             -e 's!^(\s*CustomLog)\s+\S+!\1 /proc/self/fd/1!g' \
             -e 's!^(\s*ErrorLog)\s+\S+!\1 /proc/self/fd/2!g' \
-            "$HTTPD_PREFIX/conf/httpd.conf"; \
+            "${HTTPD_CONF_DIR}/httpd.conf"; \
     \
-    chown www-data:www-data /usr/local/bin/httpd-foreground; \
-    chmod 755 /usr/local/bin/httpd-foreground; \
-    chown -R www-data:www-data ${HTTPD_PREFIX}
+    chown -v www-data:root /usr/local/bin/httpd-foreground; \
+    chmod -v 755 /usr/local/bin/httpd-foreground; \
+    chown -vR www-data:root ${HTTPD_PREFIX}; \
+    chmod -vR 775 "${HTTPD_PREFIX}"; \
+    chown -vR www-data:root "${HTTPD_PID_DIR}"; \
+    chmod -vR 775 "${HTTPD_PID_DIR}"; \
+    chown -vR www-data:root "${HTTPD_LOG_DIR}"; \
+    chmod -vR 775 "${HTTPD_LOG_DIR}"; \
+    echo "## }"
 
 # }
+
+#TEST {
+RUN echo "## HTTPD Config files {"; \
+    tree -a -F -L 4 "${HTTPD_CONF_DIR}"; \
+    tree -a -F -L 4 "${HTTPD_CONF_D_DIR}"; \
+    echo "## }"
+# }
+
 
 # Install PHP7 from source {
 # Reference: https://github.com/docker-library/php/blob/3cb02a21164bc2bdb8b25ec48886ffcb7e195510/7.0/alpine/Dockerfile
@@ -188,15 +220,17 @@ ENV PHP_VERSION 7.2.7
 ENV PHP_MIRROR "ca1.php.net"
 ENV PHP_BASE_DIR /opt/php-${PHP_VERSION}
 ENV PHP_INI_DIR ${PHP_BASE_DIR}/lib
+ENV PHP_CONF_DIR=${PHP_BASE_DIR}/etc
 
-RUN echo "Downloading sources: PHP v${PHP_VERSION} ..."; \
-    wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O php-${PHP_VERSION}.tar.gz; \
+RUN echo "## Downloading sources: PHP v${PHP_VERSION} {"; \
+    wget http://${PHP_MIRROR}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror -O php-${PHP_VERSION}.tar.gz && \
     tar -xzvf php-${PHP_VERSION}.tar.gz; \
     mkdir -p ${PHP_BASE_DIR}; \
-    mkdir -p ${PHP_INI_DIR}
+    mkdir -p ${PHP_INI_DIR}; \
+    echo "## }"
 
-RUN echo "Building: PHP v${PHP_VERSION} ..."; \
-    cd php-${PHP_VERSION}; \
+RUN echo "## Building: PHP v${PHP_VERSION} {"; \
+    cd php-${PHP_VERSION} && \
     ./configure \
         --prefix="${PHP_BASE_DIR}" \
         --with-config-file-path="${PHP_INI_DIR}" \
@@ -215,8 +249,8 @@ RUN echo "Building: PHP v${PHP_VERSION} ..."; \
         # --with-httpd24 \
         --enable-fpm  \
         --enable-opcache \
-	${PHP_EXTRA_CONFIGURE_ARGS}; \
-    make -j "$(getconf _NPROCESSORS_ONLN)"; \
+	${PHP_EXTRA_CONFIGURE_ARGS} && \
+    make -j "$(getconf _NPROCESSORS_ONLN)" && \
     make install; \
     runDeps="$( \
             scanelf --needed --nobanner --recursive /usr/local \
@@ -225,27 +259,36 @@ RUN echo "Building: PHP v${PHP_VERSION} ..."; \
                     | xargs -r apk info --installed \
                     | sort -u \
     )"; \
-    apk add --no-cache --virtual .php-rundeps $runDeps
+    apk add --no-cache --virtual .php-rundeps $runDeps; \
+    echo "## }"
     
-COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf ${HTTPD_PREFIX}/etc/conf.d/
 
-RUN echo "Post-build: PHP v${PHP_VERSION} ..."; \
+#TEST {
+RUN echo "## PHP installed files {"; \
+    tree -a -F -L 4 "${PHP_BASE_DIR}"; \
+    echo "## }"
+# }
+    
+COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf "${HTTPD_CONF_D_DIR}/"
+
+RUN echo "## Post-build: PHP v${PHP_VERSION} {"; \
     cd php-${PHP_VERSION}; \
     # { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
-    cp php.ini-production ${PHP_INI_DIR}/php.ini; \
-    cp ${PHP_BASE_DIR}/etc/php-fpm.conf.default ${PHP_BASE_DIR}/etc/php-fpm.conf; \
-    cp ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf.default ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf; \
+    cp -v php.ini-production ${PHP_INI_DIR}/php.ini; \
+    cp -v ${PHP_BASE_DIR}/etc/php-fpm.conf.default "${PHP_CONF_DIR}/php-fpm.conf"; \
+    cp -v ${PHP_BASE_DIR}/etc/php-fpm.d/www.conf.default "${PHP_CONF_DIR}/php-fpm.d/www.conf"; \
     make clean; \
     cd ..; \
     rm -r php-${PHP_VERSION}; \
     # sed -rie 's|;error_log = log/php7/error.log|error_log = /dev/stderr|g' ${PHP_BASE_DIR}/etc/php-fpm.conf
     sed -ri \
         -e 's!^;\s*error_log\s*=\s*(.+)$!error_log = /dev/stderr!g' \
-        "${PHP_BASE_DIR}/etc/php-fpm.conf"; \
+        "${PHP_CONF_DIR}/php-fpm.conf"; \
     \
-    chown www-data:www-data /usr/bin/php-fpm; \
-    chmod 755 /usr/bin/php-fpm; \
-    chown -R www-data:www-data ${PHP_BASE_DIR}
+    chown -v www-data:root /usr/bin/php-fpm; \
+    chmod -v 755 /usr/bin/php-fpm; \
+    chown -vR www-data:root "${PHP_BASE_DIR}"; \
+    echo "## }"
 
 # }
 
@@ -254,11 +297,19 @@ RUN echo "Post-build: PHP v${PHP_VERSION} ..."; \
 
 COPY ${SRC_PATH_PREFIX}www.conf ${PHP_BASE_DIR}/etc/php-fpm.d/
 
+#TEST {
+RUN echo "## PHP config files {"; \
+    tree -a -F -L 4 "${PHP_CONF_DIR}"; \
+    echo "## }"
+# }
+    
+
 # }
 
-RUN echo "Uninstalling build tools ..."; \
-    apk del .build-deps
-
+RUN echo "## Uninstalling build tools {"; \
+    apk del .build-deps; \
+    echo "## }"
+    
 # Install additional tools {
 # traceroute for Alpine is in package: iputils
 
@@ -269,8 +320,8 @@ RUN apk add --no-cache \
 
 WORKDIR ${HTTPD_PREFIX}
 
-EXPOSE 80
+EXPOSE ${HTTP_PORT}
 
-USER www-data
+#USER www-data
 
 CMD ["httpd-foreground"]
