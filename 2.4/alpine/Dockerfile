@@ -146,7 +146,7 @@ RUN echo "## Building: HTTPD v${HTTPD_VERSION} {"; \
     runDeps=' \
         apr-util \
         apr-util-ldap \
-        perl \
+        perl pcre \
     '; \
     apk add --virtual $runDeps; \
     ./configure \
@@ -158,7 +158,7 @@ RUN echo "## Building: HTTPD v${HTTPD_VERSION} {"; \
         ${HTTPD_EXTRA_CONFIGURE_ARGS} && \
     make -j "$(nproc)" && \
     make install; \
-    runDeps="$runDeps $( \
+    runDeps="${runDeps} $( \
         scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
             | tr ',' '\n' \
             | sort -u \
@@ -175,8 +175,8 @@ RUN echo "## HTTPD installed files {"; \
     
 COPY ${SRC_PATH_PREFIX}httpd-foreground /usr/local/bin/
 
-ENV HTTPD_CONF_DIR "${HTTPD_PREFIX}/etc"
-ENV HTTPD_CONF_D_DIR "${HTTPD_PREFIX}/etc/conf.d"
+ENV HTTPD_CONF_DIR "${HTTPD_PREFIX}/conf"
+ENV HTTPD_CONF_D_DIR "${HTTPD_PREFIX}/conf/extra"
 ENV HTTPD_PID_DIR "/var/run/httpd" 
 ENV HTTPD_LOG_DIR "/var/log/httpd"
 ENV WWW_ROOT "/var/www/html"
@@ -208,7 +208,6 @@ RUN echo "## Post-build: HTTPD v${HTTPD_VERSION} {"; \
     echo "## }"
 
 # }
-
 #TEST {
 RUN echo "## HTTPD Config files {"; \
     tree -a -F -L 4 "${HTTPD_CONF_DIR}"; \
@@ -242,6 +241,11 @@ RUN echo "## Downloading sources: PHP v${PHP_VERSION} {"; \
     echo "## }"
 
 RUN echo "## Building: PHP v${PHP_VERSION} {"; \
+    runDeps=' \
+        libedit \
+        libxml2 \
+    '; \
+    apk add --virtual $runDeps; \
     cd php-${PHP_VERSION} && \
     ./configure \
         --prefix="${PHP_BASE_DIR}" \
@@ -264,7 +268,7 @@ RUN echo "## Building: PHP v${PHP_VERSION} {"; \
 	${PHP_EXTRA_CONFIGURE_ARGS} && \
     make -j "$(getconf _NPROCESSORS_ONLN)" && \
     make install; \
-    runDeps="$( \
+    runDeps="${runDeps} $( \
         scanelf --needed --nobanner --recursive /usr/local \
             | awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
             | sort -u \
@@ -314,7 +318,6 @@ RUN echo "## Post-build: PHP v${PHP_VERSION} {"; \
     echo "## }"
 
 # }
-
 #TEST {
 RUN echo "## PHP config files {"; \
     tree -a -F -L 4 "${PHP_CONF_DIR}"; \
