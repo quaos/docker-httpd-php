@@ -179,6 +179,7 @@ ENV HTTPD_CONF_DIR "${HTTPD_PREFIX}/etc"
 ENV HTTPD_CONF_D_DIR "${HTTPD_PREFIX}/etc/conf.d"
 ENV HTTPD_PID_DIR "/var/run/httpd" 
 ENV HTTPD_LOG_DIR "/var/log/httpd"
+ENV WWW_ROOT "/var/www/html"
 
 RUN echo "## Post-build: HTTPD v${HTTPD_VERSION} {"; \
     cd ..; \
@@ -187,8 +188,11 @@ RUN echo "## Post-build: HTTPD v${HTTPD_VERSION} {"; \
             -e "s/^(\\s*Listen)\\s+(.+)$/\\1 ${HTTP_PORT}/g" \
             -e 's!^(\s*User)\s+(.+)$!\1 www-data!g' \
             -e 's!^(\s*Group)\s+(.+)$!\1 www-data!g' \
-            -e 's!^(\s*CustomLog)\s+\S+!\1 /proc/self/fd/1!g' \
-            -e 's!^(\s*ErrorLog)\s+\S+!\1 /proc/self/fd/2!g' \
+            #-e 's!^(\s*CustomLog)\s+\S+!\1 /proc/self/fd/1!g' \
+            #-e 's!^(\s*ErrorLog)\s+\S+!\1 /proc/self/fd/2!g' \
+            -e 's!^(\s*CustomLog)\s+\S+!\1 /dev/stdout!g' \
+            -e 's!^(\s*ErrorLog)\s+\S+!\1 /dev/stderr!g' \
+            -e "s/^(\\s*DocumentRoot)\\s+(.+)$/\\1 ${WWW_ROOT}/g" \
             "${HTTPD_CONF_DIR}/httpd.conf"; \
     \
     chown -v www-data:root /usr/local/bin/httpd-foreground; \
@@ -199,6 +203,8 @@ RUN echo "## Post-build: HTTPD v${HTTPD_VERSION} {"; \
     chmod -vR 775 "${HTTPD_PID_DIR}"; \
     chown -vR www-data:root "${HTTPD_LOG_DIR}"; \
     chmod -vR 775 "${HTTPD_LOG_DIR}"; \
+    chown -vR www-data:root "${WWW_ROOT}"; \
+    chmod -vR 775 "${WWW_ROOT}"; \
     echo "## }"
 
 # }
@@ -277,6 +283,11 @@ RUN echo "## PHP installed files {"; \
     
 COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf "${HTTPD_CONF_D_DIR}/"
 
+# Set configurations for Apache HTTPD & PHP/FPM {
+# Reference: https://github.com/smrutiranjantripathy/alpine-apache-php-fpm
+
+COPY ${SRC_PATH_PREFIX}www.conf ${PHP_BASE_DIR}/etc/php-fpm.d/
+
 RUN echo "## Post-build: PHP v${PHP_VERSION} {"; \
     cd php-${PHP_VERSION}; \
     # { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
@@ -304,11 +315,6 @@ RUN echo "## Post-build: PHP v${PHP_VERSION} {"; \
 
 # }
 
-# Set configurations for Apache HTTPD & PHP/FPM {
-# Reference: https://github.com/smrutiranjantripathy/alpine-apache-php-fpm
-
-COPY ${SRC_PATH_PREFIX}www.conf ${PHP_BASE_DIR}/etc/php-fpm.d/
-
 #TEST {
 RUN echo "## PHP config files {"; \
     tree -a -F -L 4 "${PHP_CONF_DIR}"; \
@@ -331,7 +337,7 @@ RUN apk add --no-cache \
     
 # }
 
-ENV PATH "${}:${PHPFPM_BIN_DIR}:${PATH}"
+ENV PATH "${PHPFPM_BIN_DIR}:${PATH}"
 
 WORKDIR ${HTTPD_PREFIX}
 
