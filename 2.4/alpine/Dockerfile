@@ -122,9 +122,14 @@ RUN echo "## Installing build tools {"; \
 
 ENV PHP_VERSION 7.2.8
 ENV PHP_BASE_URL="https://secure.php.net"
-#ENV PHP_ASC_URL="https://secure.php.net"
-ENV PHP_SHA256="53ba0708be8a7db44256e3ae9fcecc91b811e5b5119e6080c951ffe7910ffb0f"
+
+# http://php.net/downloads.php
+# SHA for .tar.gz :
+ENV PHP_SHA256="a0cb9bf2f78498fc090eb553df03cdacc198785dec0818efa7a1804c2b7a8722"
+# SHA for .tar.xz :
+# "53ba0708be8a7db44256e3ae9fcecc91b811e5b5119e6080c951ffe7910ffb0f"
 ENV PHP_MD5=""
+
 ENV PHP_CFLAGS="-fstack-protector-strong -fpic -fpie -O2"
 ENV PHP_CPPFLAGS="$PHP_CFLAGS"
 ENV PHP_LDFLAGS="-Wl,-O1 -Wl,--hash-style=both -pie"
