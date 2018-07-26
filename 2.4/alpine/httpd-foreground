@@ -10,6 +10,8 @@ cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "ServerName"
 cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "ServerRoot"
 cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "DocumentRoot"
 cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "Proxy"
+cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "CustomLog"
+cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "ErrorLog"
 cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "Include"
 echo "## }"
 # }
