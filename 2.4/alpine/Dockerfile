@@ -31,13 +31,10 @@ RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
         -e "s/^(\\s*Listen)\\s+(.+)$/\\1 ${HTTP_PORT}/g" \
         -e 's!^(\s*User)\s+(.+)$!\1 www-data!g' \
         -e 's!^(\s*Group)\s+(.+)$!\1 www-data!g' \
-        #-e 's!^(\s*CustomLog)\s+\S+!\1 /proc/self/fd/1!g' \
-        #-e 's!^(\s*ErrorLog)\s+\S+!\1 /proc/self/fd/2!g' \
-        #-e 's!^(\s*CustomLog)\s+\S+!\1 /dev/stdout!g' \
-        #-e 's!^(\s*ErrorLog)\s+\S+!\1 /dev/stderr!g' \
         -e "s/^(\\s*DocumentRoot)\\s+(.+)$/\\1 ${WWW_ROOT}/g" \
         "${HTTPD_CONF_DIR}/httpd.conf"; \
     \
+    echo "Include ${HTTPD_CONF_D_DIR}/*.conf" >>"${HTTPD_CONF_DIR}/httpd.conf"; \
     chown -v www-data:root /usr/local/bin/httpd-foreground; \
     chmod -v 755 /usr/local/bin/httpd-foreground; \
     chown -R www-data:root ${HTTPD_PREFIX}; \
@@ -53,6 +50,19 @@ RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
 RUN echo "## HTTPD Config files {"; \
     tree -a -F -L 4 "${HTTPD_CONF_DIR}"; \
     tree -a -F -L 4 "${HTTPD_CONF_D_DIR}"; \
+    echo "## }"
+RUN echo "## HTTPD config summary {"; \
+    HTTPD_MAIN_CONF="${HTTPD_CONF_DIR}/httpd.conf"; \
+    cat "${HTTPD_MAIN_CONF}" |grep "Listen"; \
+    cat "${HTTPD_MAIN_CONF}" |grep "ServerName"; \
+    cat "${HTTPD_MAIN_CONF}" |grep "ServerRoot"; \
+    cat "${HTTPD_MAIN_CONF}" |grep "DocumentRoot"; \
+    cat "${HTTPD_MAIN_CONF}" |grep "User"; \
+    cat "${HTTPD_MAIN_CONF}" |grep "Group"; \
+    cat "${HTTPD_MAIN_CONF}" |grep "Proxy"; \
+    cat "${HTTPD_MAIN_CONF}" |grep "CustomLog"; \
+    cat "${HTTPD_MAIN_CONF}" |grep "ErrorLog"; \
+    cat "${HTTPD_MAIN_CONF}" |grep "Include"; \
     echo "## }"
 # }
 

@@ -5,14 +5,17 @@ echo "## Runtime Environment variables {"; \
 set; \
 echo "## }"
 echo "## HTTPD config summary {"; \
-cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "Listen"
-cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "ServerName"
-cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "ServerRoot"
-cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "DocumentRoot"
-cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "Proxy"
-cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "CustomLog"
-cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "ErrorLog"
-cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "Include"
+HTTPD_MAIN_CONF="${HTTPD_CONF_DIR}/httpd.conf"
+cat "${HTTPD_MAIN_CONF}" |grep "Listen"
+cat "${HTTPD_MAIN_CONF}" |grep "ServerName"
+cat "${HTTPD_MAIN_CONF}" |grep "ServerRoot"
+cat "${HTTPD_MAIN_CONF}" |grep "DocumentRoot"
+cat "${HTTPD_MAIN_CONF}" |grep "User"
+cat "${HTTPD_MAIN_CONF}" |grep "Group"
+cat "${HTTPD_MAIN_CONF}" |grep "Proxy"
+cat "${HTTPD_MAIN_CONF}" |grep "CustomLog"
+cat "${HTTPD_MAIN_CONF}" |grep "ErrorLog"
+cat "${HTTPD_MAIN_CONF}" |grep "Include"
 echo "## }"
 # }
 
