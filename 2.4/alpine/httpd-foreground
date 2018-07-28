@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #TEST {
 
 echo "## Current user: `id`"
@@ -47,7 +47,7 @@ echo "## }"
 
 # }
 
-set -x
+set -ex
 
 #Verify HTTPD config
 httpd -t
@@ -56,6 +56,6 @@ httpd -t
 exec php-fpm &
 
 # Apache gets grumpy about PID files pre-existing
-rm -f ${HTTPD_PID_DIR}/httpd.pid
+rm -f ${HTTPD_PID_DIR}/httpd.pid || true
 
 exec httpd -DFOREGROUND
