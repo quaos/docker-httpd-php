@@ -43,6 +43,7 @@ ENV HTTPD_PID_DIR "${HTTPD_PREFIX}/logs"
 #"/var/run/httpd"
 ENV HTTPD_LOG_DIR "${HTTPD_PREFIX}/logs"
 # "/var/log/httpd"
+ENV HTTPD_ORIG_WWW_ROOT "${HTTPD_PREFIX}/htdocs"
 ENV WWW_ROOT "/var/www/html"
 
 RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
@@ -69,6 +70,9 @@ RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
     chown -R www-data:root "${HTTPD_LOG_DIR}"; \
     chmod -v 775 "${HTTPD_LOG_DIR}"; \
     mkdir -p "${WWW_ROOT}"; \
+    if [ "${HTTPD_ORIG_WWW_ROOT}" != "${WWW_ROOT}" ]; then \
+        cp -vR "${HTTPD_ORIG_WWW_ROOT}/*" "${WWW_ROOT}/"; \
+    fi; \
     chown -R www-data:root "${WWW_ROOT}"; \
     chmod -v 775 "${WWW_ROOT}"; \
     httpd -t; \
