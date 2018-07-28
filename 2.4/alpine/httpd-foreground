@@ -34,20 +34,23 @@ echo "[${PHP_INI_CONF}]"
 
 PHPFPM_MAIN_CONF="${PHP_CONF_DIR}/php-fpm.conf"
 echo "[${PHPFPM_MAIN_CONF}]"
-    cat "[${PHPFPM_MAIN_CONF}]" |grep -iE '^(\s*error_log)\s*\='
-    cat "[${PHPFPM_MAIN_CONF}]" |grep -iE '^(\s*user)\s*\='
-    cat "[${PHPFPM_MAIN_CONF}]" |grep -iE '^(\s*group)\s*\='
+    cat "${PHPFPM_MAIN_CONF}" |grep -iE '^(\s*error_log)\s*\='
+    cat "${PHPFPM_MAIN_CONF}" |grep -iE '^(\s*user)\s*\='
+    cat "${PHPFPM_MAIN_CONF}" |grep -iE '^(\s*group)\s*\='
 
 PHPFPM_WWW_CONF="${PHP_CONF_DIR}/php-fpm.d/www.conf"
 echo "[${PHPFPM_WWW_CONF}]"
-    cat "[${PHPFPM_WWW_CONF}]" |grep -iE '^(\s*access\.log)\s*\='
-    cat "[${PHPFPM_WWW_CONF}]" |grep -iE '^(\s*slowlog)\s*\='
+    cat "${PHPFPM_WWW_CONF}" |grep -iE '^(\s*access\.log)\s*\='
+    cat "${PHPFPM_WWW_CONF}" |grep -iE '^(\s*slowlog)\s*\='
 
 echo "## }"
 
 # }
 
 set -x
+
+#Verify HTTPD config
+httpd -t
 
 #Start PHP-FPM
 exec php-fpm &

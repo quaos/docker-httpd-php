@@ -50,8 +50,8 @@ RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
         -e "s/^(\\s*Listen)\\s+(.+)$/\\1 ${HTTP_PORT}/g" \
         -e 's!^(\s*User)\s+(.+)$!\1 www-data!g' \
         -e 's!^(\s*Group)\s+(.+)$!\1 www-data!g' \
-        #-e "s|^(\\s*DocumentRoot)\\s+(.+)$|\\1 ${WWW_ROOT}|g" \
-        -e 's!^(\s*)#(\s*LoadModule)\s+(proxy_(http|fcgi)_module)\s+(.+)$!\1\2 \3 \5!g' \
+        -e "s|^(\\s*DocumentRoot)\\s+(.+)$|\\1 ${WWW_ROOT}|g" \
+        -e 's!^(\s*)#(\s*LoadModule)\s+((proxy|proxy_http|proxy_fcgi)_module)\s+(.+)$!\1\2 \3 \5!g' \
         "${HTTPD_CONF_DIR}/httpd.conf"; \
     \
     echo "Include ${HTTPD_CONF_D_DIR}/*.conf" >>"${HTTPD_CONF_DIR}/httpd.conf"; \
@@ -60,12 +60,16 @@ RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
     chmod -v 755 /usr/local/bin/httpd-foreground; \
     chown -R www-data:root ${HTTPD_PREFIX}; \
     chmod -v 775 "${HTTPD_PREFIX}"; \
+    mkdir -p "${HTTPD_PID_DIR}"; \
     chown -R www-data:root "${HTTPD_PID_DIR}"; \
     chmod -v 775 "${HTTPD_PID_DIR}"; \
+    mkdir -p "${HTTPD_LOG_DIR}"; \
     chown -R www-data:root "${HTTPD_LOG_DIR}"; \
     chmod -v 775 "${HTTPD_LOG_DIR}"; \
+    mkdir -p "${WWW_ROOT}"; \
     chown -R www-data:root "${WWW_ROOT}"; \
     chmod -v 775 "${WWW_ROOT}"; \
+    httpd -t; \
     set +x; \
     echo "## }"
 #TEST {
@@ -172,8 +176,7 @@ ENV PHPFPM_BIN_DIR "${PHP_BASE_DIR}/sbin"
 
 RUN echo "## Downloading sources: PHP v${PHP_VERSION} {"; \
     set -ex; \
-    wget "${PHP_BASE_URL}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror" -O "php-${PHP_VERSION}.tar.gz" && \
-    tar -xzf php-${PHP_VERSION}.tar.gz; \
+    wget "${PHP_BASE_URL}/get/php-${PHP_VERSION}.tar.gz/from/this/mirror" -O "php-${PHP_VERSION}.tar.gz"; \
     if [ -n "$PHP_SHA256" ]; then \
         echo "$PHP_SHA256 *php-${PHP_VERSION}.tar.gz" | sha256sum -c -; \
     fi; \
@@ -190,6 +193,7 @@ RUN echo "## Downloading sources: PHP v${PHP_VERSION} {"; \
         command -v gpgconf > /dev/null && gpgconf --kill all; \
         rm -fR "$GNUPGHOME"; \
     fi; \
+    tar -xzf php-${PHP_VERSION}.tar.gz; \
     mkdir -p ${PHP_BASE_DIR}; \
     mkdir -p "${PHP_CONF_DIR}"; \
     mkdir -p "${PHP_CONF_D_DIR}"; \
@@ -272,12 +276,13 @@ RUN echo "## Post-build: PHP v${PHP_VERSION} {"; \
     cp -v ${PHP_CONF_DIR}/php-fpm.conf.default "${PHP_CONF_DIR}/php-fpm.conf"; \
     #cp -v ${PHP_CONF_DIR}/php-fpm.d/www.conf.default "${PHP_CONF_DIR}/php-fpm.d/www.conf"; \
     make clean; \
-    cd ..; \
-    rm -r php-${PHP_VERSION}; \
+    #cd ..; \
     sed -ri \
         -e 's!^;\s*error_log\s*=\s*(.+)$!error_log = /proc/self/fd/2!g' \
         "${PHP_CONF_DIR}/php-fpm.conf"; \
     \
+    chown -vR www-data:root "${PHP_BIN_DIR}"; \
+    chmod -v 755 "${PHP_BIN_DIR}/*"; \
     chown -vR www-data:root "${PHPFPM_BIN_DIR}"; \
     chmod -v 755 "${PHPFPM_BIN_DIR}/php-fpm"; \
     chown -R www-data:root "${PHP_BASE_DIR}"; \
@@ -308,19 +313,21 @@ RUN echo "## PHP config files {"; \
         cat "${PHP_INI_CONF}" |grep -iE '^(\s*extension)\s*\='; \
     PHPFPM_MAIN_CONF="${PHP_CONF_DIR}/php-fpm.conf"; \
     echo "[${PHPFPM_MAIN_CONF}]"; \
-        cat "[${PHPFPM_MAIN_CONF}]" |grep -iE '^(\s*error_log)\s*\='; \
-        cat "[${PHPFPM_MAIN_CONF}]" |grep -iE '^(\s*user)\s*\='; \
-        cat "[${PHPFPM_MAIN_CONF}]" |grep -iE '^(\s*group)\s*\='; \
+        cat "${PHPFPM_MAIN_CONF}" |grep -iE '^(\s*error_log)\s*\='; \
+        cat "${PHPFPM_MAIN_CONF}" |grep -iE '^(\s*user)\s*\='; \
+        cat "${PHPFPM_MAIN_CONF}" |grep -iE '^(\s*group)\s*\='; \
     PHPFPM_WWW_CONF="${PHP_CONF_DIR}/php-fpm.d/www.conf"; \
     echo "[${PHPFPM_WWW_CONF}]"; \
-        cat "[${PHPFPM_WWW_CONF}]" |grep -iE '^(\s*access\.log)\s*\='; \
-        cat "[${PHPFPM_WWW_CONF}]" |grep -iE '^(\s*slowlog)\s*\='; \
+        cat "${PHPFPM_WWW_CONF}" |grep -iE '^(\s*access\.log)\s*\='; \
+        cat "${PHPFPM_WWW_CONF}" |grep -iE '^(\s*slowlog)\s*\='; \
     echo "## }"
 
 # }
 
-RUN echo "## Uninstalling build tools {"; \
+RUN echo "## Cleaning up {"; \
     set -x; \
+    rm -fR php-${PHP_VERSION}; \
+    rm -f php-${PHP_VERSION}.tar.gz; \
     apk del .build-deps; \
     set +x; \
     echo "## }"
