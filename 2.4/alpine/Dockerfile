@@ -17,6 +17,12 @@ ARG HTTP_PORT=8080
 
 # Check&reconfigure Apache HTTPD installation {
 
+#TEST {
+RUN echo "## HTTPD installed files {"; \
+	tree  -a -F -L 4 "${HTTPD_PREFIX}"; \
+    echo "## }"
+# }
+
 COPY "${SRC_PATH_PREFIX}httpd-foreground" "/usr/local/bin/"
 ENV HTTPD_CONF_DIR "${HTTPD_PREFIX}/conf"
 ENV HTTPD_CONF_D_DIR "${HTTPD_PREFIX}/conf.d"
@@ -53,17 +59,17 @@ RUN echo "## HTTPD Config files {"; \
     echo "## }"; \
     echo "## HTTPD config summary {"; \
     HTTPD_MAIN_CONF="${HTTPD_CONF_DIR}/httpd.conf"; \
-    cat "${HTTPD_MAIN_CONF}" |grep -Pi '^(\s*Listen)\s+'; \
-    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*ServerName)\s+'; \
-    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*ServerRoot)\s+'; \
-    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*DocumentRoot)\s+'; \
-    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*User)\s+'; \
-    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*Group)\s+'; \
-    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*Proxy)\s+'; \
-    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*CustomLog)\s+'; \
-    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*ErrorLog)\s+'; \
-    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*LoadModule)\s+'; \
-    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*Include)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -iE '^(\s*Listen)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -iE  '^(\s*ServerName)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -iE  '^(\s*ServerRoot)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -iE  '^(\s*DocumentRoot)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -iE  '^(\s*User)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -iE  '^(\s*Group)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -iE  '^(\s*Proxy)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -iE  '^(\s*CustomLog)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -iE  '^(\s*ErrorLog)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -iE  '^(\s*LoadModule)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -iE  '^(\s*Include)\s+'; \
     echo "## }"
 # }
 
@@ -72,7 +78,8 @@ RUN echo "## Installing prerequisites {"; \
     apk update; \
     apk add --no-cache \
     wget tar bzip2 xz perl openssl libressl gnupg tree \
-    ca-certificates coreutils dpkg tzdata; \
+    ca-certificates coreutils dpkg tzdata\
+	libedit libxml2 pcre; \
     echo "## }"
     
 # }
@@ -288,20 +295,20 @@ RUN echo "## PHP config files {"; \
     echo "## PHP config summary {"; \
     PHP_INI_CONF="${PHP_CONF_DIR}/php.ini"; \
     echo "[${PHP_INI_CONF}]"; \
-        cat "${PHP_INI_CONF}" |grep -Pi '^(\s*display_errors)\s*\='; \
-        cat "${PHP_INI_CONF}" |grep -Pi '^(\s*error_reporting)\s*\='; \
-        cat "${PHP_INI_CONF}" |grep -Pi '^(\s*log_error)\s*\='; \
-        cat "${PHP_INI_CONF}" |grep -Pi '^(\s*error_log)\s*\='; \
-        cat "${PHP_INI_CONF}" |grep -Pi '^(\s*extension)\s*\='; \
+        cat "${PHP_INI_CONF}" |grep -iE '^(\s*display_errors)\s*\='; \
+        cat "${PHP_INI_CONF}" |grep -iE '^(\s*error_reporting)\s*\='; \
+        cat "${PHP_INI_CONF}" |grep -iE '^(\s*log_error)\s*\='; \
+        cat "${PHP_INI_CONF}" |grep -iE '^(\s*error_log)\s*\='; \
+        cat "${PHP_INI_CONF}" |grep -iE '^(\s*extension)\s*\='; \
     PHPFPM_MAIN_CONF="${PHP_CONF_DIR}/php-fpm.conf"; \
     echo "[${PHPFPM_MAIN_CONF}]"; \
-        cat "[${PHPFPM_MAIN_CONF}]" |grep -Pi '^(\s*error_log)\s*\='; \
-        cat "[${PHPFPM_MAIN_CONF}]" |grep -Pi '^(\s*user)\s*\='; \
-        cat "[${PHPFPM_MAIN_CONF}]" |grep -Pi '^(\s*group)\s*\='; \
+        cat "[${PHPFPM_MAIN_CONF}]" |grep -iE '^(\s*error_log)\s*\='; \
+        cat "[${PHPFPM_MAIN_CONF}]" |grep -iE '^(\s*user)\s*\='; \
+        cat "[${PHPFPM_MAIN_CONF}]" |grep -iE '^(\s*group)\s*\='; \
     PHPFPM_WWW_CONF="${PHP_CONF_DIR}/php-fpm.d/www.conf"; \
     echo "[${PHPFPM_WWW_CONF}]"; \
-        cat "[${PHPFPM_WWW_CONF}]" |grep -Pi '^(\s*access\.log)\s*\='; \
-        cat "[${PHPFPM_WWW_CONF}]" |grep -Pi '^(\s*slowlog)\s*\='; \
+        cat "[${PHPFPM_WWW_CONF}]" |grep -iE '^(\s*access\.log)\s*\='; \
+        cat "[${PHPFPM_WWW_CONF}]" |grep -iE '^(\s*slowlog)\s*\='; \
     echo "## }"
 
 # }
