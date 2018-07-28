@@ -1,5 +1,4 @@
 #!/bin/sh
-set -x
 
 #TEST {
 echo "## Current user: `id`"; \
@@ -14,6 +13,8 @@ cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "DocumentRoot"
 cat "${HTTPD_CONF_DIR}/httpd.conf" |grep "Proxy"
 echo "## }"
 # }
+
+set -x
 
 #Start PHP-FPM
 exec php-fpm &

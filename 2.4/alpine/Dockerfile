@@ -31,7 +31,7 @@ RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
         -e "s/^(\\s*Listen)\\s+(.+)$/\\1 ${HTTP_PORT}/g" \
         -e 's!^(\s*User)\s+(.+)$!\1 www-data!g' \
         -e 's!^(\s*Group)\s+(.+)$!\1 www-data!g' \
-        -e "s/^(\\s*DocumentRoot)\\s+(.+)$/\\1 ${WWW_ROOT}/g" \
+        #-e "s|^(\\s*DocumentRoot)\\s+(.+)$|\\1 ${WWW_ROOT}|g" \
         "${HTTPD_CONF_DIR}/httpd.conf"; \
     \
     echo "Include ${HTTPD_CONF_D_DIR}/*.conf" >>"${HTTPD_CONF_DIR}/httpd.conf"; \
@@ -50,19 +50,20 @@ RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
 RUN echo "## HTTPD Config files {"; \
     tree -a -F -L 4 "${HTTPD_CONF_DIR}"; \
     tree -a -F -L 4 "${HTTPD_CONF_D_DIR}"; \
-    echo "## }"
-RUN echo "## HTTPD config summary {"; \
+    echo "## }"; \
+    echo "## HTTPD config summary {"; \
     HTTPD_MAIN_CONF="${HTTPD_CONF_DIR}/httpd.conf"; \
-    cat "${HTTPD_MAIN_CONF}" |grep "Listen"; \
-    cat "${HTTPD_MAIN_CONF}" |grep "ServerName"; \
-    cat "${HTTPD_MAIN_CONF}" |grep "ServerRoot"; \
-    cat "${HTTPD_MAIN_CONF}" |grep "DocumentRoot"; \
-    cat "${HTTPD_MAIN_CONF}" |grep "User"; \
-    cat "${HTTPD_MAIN_CONF}" |grep "Group"; \
-    cat "${HTTPD_MAIN_CONF}" |grep "Proxy"; \
-    cat "${HTTPD_MAIN_CONF}" |grep "CustomLog"; \
-    cat "${HTTPD_MAIN_CONF}" |grep "ErrorLog"; \
-    cat "${HTTPD_MAIN_CONF}" |grep "Include"; \
+    cat "${HTTPD_MAIN_CONF}" |grep -Pi '^(\s*Listen)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*ServerName)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*ServerRoot)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*DocumentRoot)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*User)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*Group)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*Proxy)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*CustomLog)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*ErrorLog)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*LoadModule)\s+'; \
+    cat "${HTTPD_MAIN_CONF}" |grep -Pi  '^(\s*Include)\s+'; \
     echo "## }"
 # }
 
@@ -248,7 +249,7 @@ COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf "${HTTPD_CONF_D_DIR}/"
 # Set configurations for Apache HTTPD & PHP/FPM {
 # Reference: https://github.com/smrutiranjantripathy/alpine-apache-php-fpm
 
-COPY ${SRC_PATH_PREFIX}www.conf ${PHP_BASE_DIR}/etc/php-fpm.d/
+COPY ${SRC_PATH_PREFIX}www.conf ${PHP_CONF_DIR}/php-fpm.d/
 
 RUN echo "## Post-build: PHP v${PHP_VERSION} {"; \
     set -x; \
@@ -256,7 +257,7 @@ RUN echo "## Post-build: PHP v${PHP_VERSION} {"; \
     # { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
     cp -v php.ini-production ${PHP_CONF_DIR}/php.ini; \
     cp -v ${PHP_CONF_DIR}/php-fpm.conf.default "${PHP_CONF_DIR}/php-fpm.conf"; \
-    cp -v ${PHP_CONF_DIR}/php-fpm.d/www.conf.default "${PHP_CONF_DIR}/php-fpm.d/www.conf"; \
+    #cp -v ${PHP_CONF_DIR}/php-fpm.d/www.conf.default "${PHP_CONF_DIR}/php-fpm.d/www.conf"; \
     make clean; \
     cd ..; \
     rm -r php-${PHP_VERSION}; \
@@ -279,12 +280,29 @@ RUN echo "## Post-build: PHP v${PHP_VERSION} {"; \
 
 # }
 #TEST {
+
 RUN echo "## PHP config files {"; \
     tree -a -F -L 4 "${PHP_CONF_DIR}"; \
     tree -a -F -L 4 "${PHP_CONF_D_DIR}"; \
+    echo "## }"; \
+    echo "## PHP config summary {"; \
+    PHP_INI_CONF="${PHP_CONF_DIR}/php.ini"; \
+    echo "[${PHP_INI_CONF}]"; \
+        cat "${PHP_INI_CONF}" |grep -Pi '^(\s*display_errors)\s*\='; \
+        cat "${PHP_INI_CONF}" |grep -Pi '^(\s*error_reporting)\s*\='; \
+        cat "${PHP_INI_CONF}" |grep -Pi '^(\s*log_error)\s*\='; \
+        cat "${PHP_INI_CONF}" |grep -Pi '^(\s*error_log)\s*\='; \
+        cat "${PHP_INI_CONF}" |grep -Pi '^(\s*extension)\s*\='; \
+    PHPFPM_MAIN_CONF="${PHP_CONF_DIR}/php-fpm.conf"; \
+    echo "[${PHPFPM_MAIN_CONF}]"; \
+        cat "[${PHPFPM_MAIN_CONF}]" |grep -Pi '^(\s*error_log)\s*\='; \
+        cat "[${PHPFPM_MAIN_CONF}]" |grep -Pi '^(\s*user)\s*\='; \
+        cat "[${PHPFPM_MAIN_CONF}]" |grep -Pi '^(\s*group)\s*\='; \
+    PHPFPM_WWW_CONF="${PHP_CONF_DIR}/php-fpm.d/www.conf"; \
+    echo "[${PHPFPM_WWW_CONF}]"; \
+        cat "[${PHPFPM_WWW_CONF}]" |grep -Pi '^(\s*access\.log)\s*\='; \
+        cat "[${PHPFPM_WWW_CONF}]" |grep -Pi '^(\s*slowlog)\s*\='; \
     echo "## }"
-# }
-    
 
 # }
 
