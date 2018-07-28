@@ -15,6 +15,19 @@ ARG SRC_PATH_PREFIX=""
 #"2.4/alpine/"
 ARG HTTP_PORT=8080
 
+# Install prerequisite tools {
+RUN echo "## Installing prerequisites {"; \
+    set -x; \
+    apk update; \
+    apk add --no-cache \
+    wget tar bzip2 xz perl openssl libressl gnupg tree \
+    ca-certificates coreutils dpkg tzdata\
+    libedit libxml2 pcre; \
+    set +x; \
+    echo "## }"
+    
+# }
+
 # Check&reconfigure Apache HTTPD installation {
 
 #TEST {
@@ -38,9 +51,11 @@ RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
         -e 's!^(\s*User)\s+(.+)$!\1 www-data!g' \
         -e 's!^(\s*Group)\s+(.+)$!\1 www-data!g' \
         #-e "s|^(\\s*DocumentRoot)\\s+(.+)$|\\1 ${WWW_ROOT}|g" \
+        -e 's!^(\s*)#(\s*LoadModule)\s+(proxy_(http|fcgi)_module)\s+(.+)$!\1\2 \3 \5!g' \
         "${HTTPD_CONF_DIR}/httpd.conf"; \
     \
     echo "Include ${HTTPD_CONF_D_DIR}/*.conf" >>"${HTTPD_CONF_DIR}/httpd.conf"; \
+    mkdir -p "${HTTPD_CONF_D_DIR}"; \
     chown -v www-data:root /usr/local/bin/httpd-foreground; \
     chmod -v 755 /usr/local/bin/httpd-foreground; \
     chown -R www-data:root ${HTTPD_PREFIX}; \
@@ -51,6 +66,7 @@ RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
     chmod -v 775 "${HTTPD_LOG_DIR}"; \
     chown -R www-data:root "${WWW_ROOT}"; \
     chmod -v 775 "${WWW_ROOT}"; \
+    set +x; \
     echo "## }"
 #TEST {
 RUN echo "## HTTPD Config files {"; \
@@ -71,17 +87,6 @@ RUN echo "## HTTPD Config files {"; \
     cat "${HTTPD_MAIN_CONF}" |grep -iE  '^(\s*LoadModule)\s+'; \
     cat "${HTTPD_MAIN_CONF}" |grep -iE  '^(\s*Include)\s+'; \
     echo "## }"
-# }
-
-# Install prerequisite tools {
-RUN echo "## Installing prerequisites {"; \
-    apk update; \
-    apk add --no-cache \
-    wget tar bzip2 xz perl openssl libressl gnupg tree \
-    ca-certificates coreutils dpkg tzdata\
-	libedit libxml2 pcre; \
-    echo "## }"
-    
 # }
 
 RUN set -x; \
@@ -128,7 +133,9 @@ RUN echo "## Installing build tools {"; \
         apr-util-dev \
     '; \
     echo "buildDeps: ${buildDeps}"; \
+    set -x; \
     apk add --no-cache --virtual .build-deps $buildDeps; \
+    set +x; \
     echo "## }"
     
 # }
@@ -160,7 +167,7 @@ ENV PHP_PID_DIR "${PHP_BASE_DIR}/var/run"
 ENV PHP_LOG_DIR "${PHP_BASE_DIR}/var/log"
 ENV PHP_SESSIONS_DIR="/var/lib/php/session"
 #ENV PHP_INI_DIR "${PHP_BASE_DIR}/lib"
-ENV PHP_BIN_DIR "${PHP_BASE_DIR}/usr/bin"
+ENV PHP_BIN_DIR "${PHP_BASE_DIR}/bin"
 ENV PHPFPM_BIN_DIR "${PHP_BASE_DIR}/sbin"
 
 RUN echo "## Downloading sources: PHP v${PHP_VERSION} {"; \
@@ -250,12 +257,11 @@ RUN echo "## PHP installed files {"; \
     tree -a -F -L 4 "${PHP_BASE_DIR}"; \
     echo "## }"
 # }
-    
-COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf "${HTTPD_CONF_D_DIR}/"
-
+   
 # Set configurations for Apache HTTPD & PHP/FPM {
 # Reference: https://github.com/smrutiranjantripathy/alpine-apache-php-fpm
-
+ 
+COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf "${HTTPD_CONF_D_DIR}/"
 COPY ${SRC_PATH_PREFIX}www.conf ${PHP_CONF_DIR}/php-fpm.d/
 
 RUN echo "## Post-build: PHP v${PHP_VERSION} {"; \
@@ -272,8 +278,8 @@ RUN echo "## Post-build: PHP v${PHP_VERSION} {"; \
         -e 's!^;\s*error_log\s*=\s*(.+)$!error_log = /proc/self/fd/2!g' \
         "${PHP_CONF_DIR}/php-fpm.conf"; \
     \
-    chown -v www-data:root /usr/bin/php-fpm; \
-    chmod -v 755 /usr/bin/php-fpm; \
+    chown -vR www-data:root "${PHPFPM_BIN_DIR}"; \
+    chmod -v 755 "${PHPFPM_BIN_DIR}/php-fpm"; \
     chown -R www-data:root "${PHP_BASE_DIR}"; \
     chown -R www-data:root "${PHP_PID_DIR}"; \
     chmod -v 775 "${PHP_PID_DIR}"; \
@@ -314,14 +320,19 @@ RUN echo "## PHP config files {"; \
 # }
 
 RUN echo "## Uninstalling build tools {"; \
+    set -x; \
     apk del .build-deps; \
+    set +x; \
     echo "## }"
     
 # Install additional tools {
 # traceroute for Alpine is in package: iputils
-
-RUN apk add --no-cache \
-    curl nano vim net-tools iputils
+RUN echo "## Installing extra tools {"; \
+    set -x; \
+    apk add --no-cache \
+    curl nano vim net-tools iputils; \
+    set +x; \
+    echo "## }"
     
 # }
 
