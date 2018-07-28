@@ -39,8 +39,10 @@ RUN echo "## HTTPD installed files {"; \
 COPY "${SRC_PATH_PREFIX}httpd-foreground" "/usr/local/bin/"
 ENV HTTPD_CONF_DIR "${HTTPD_PREFIX}/conf"
 ENV HTTPD_CONF_D_DIR "${HTTPD_PREFIX}/conf.d"
-ENV HTTPD_PID_DIR "/var/run/httpd"
-ENV HTTPD_LOG_DIR "/var/log/httpd"
+ENV HTTPD_PID_DIR "${HTTPD_PREFIX}/logs"
+#"/var/run/httpd"
+ENV HTTPD_LOG_DIR "${HTTPD_PREFIX}/logs"
+# "/var/log/httpd"
 ENV WWW_ROOT "/var/www/html"
 
 RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
