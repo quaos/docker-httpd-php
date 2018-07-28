@@ -54,7 +54,7 @@ RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
         -e 's!^(\s*User)\s+(.+)$!\1 www-data!g' \
         -e 's!^(\s*Group)\s+(.+)$!\1 www-data!g' \
         -e "s|^(\\s*DocumentRoot)\\s+(.+)$|\\1 ${WWW_ROOT}|g" \
-        -e 's!^(\s*)#(\s*LoadModule)\s+((proxy|proxy_http|proxy_fcgi)_module)\s+(.+)$!\1\2 \3 \5!g' \
+        -e 's!^(\s*)#(\s*LoadModule)\s+((rewrite|proxy|proxy_http|proxy_http2|proxy_fcgi|session|session_cookie|session_crypto)_module)\s+(.+)$!\1\2 \3 \5!g' \
         "${HTTPD_CONF_DIR}/httpd.conf"; \
     \
     echo "Include ${HTTPD_CONF_D_DIR}/*.conf" >>"${HTTPD_CONF_DIR}/httpd.conf"; \
