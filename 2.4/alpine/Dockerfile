@@ -71,7 +71,7 @@ RUN echo "## Checking&Configuring HTTPD v${HTTPD_VERSION} {"; \
     chmod -v 775 "${HTTPD_LOG_DIR}"; \
     mkdir -p "${WWW_ROOT}"; \
     if [ "${HTTPD_ORIG_WWW_ROOT}" != "${WWW_ROOT}" ]; then \
-        cp -vR "${HTTPD_ORIG_WWW_ROOT}/*" "${WWW_ROOT}/"; \
+        cp -vR "${HTTPD_ORIG_WWW_ROOT}"/* "${WWW_ROOT}/"; \
     fi; \
     chown -R www-data:root "${WWW_ROOT}"; \
     chmod -v 775 "${WWW_ROOT}"; \
@@ -288,7 +288,7 @@ RUN echo "## Post-build: PHP v${PHP_VERSION} {"; \
         "${PHP_CONF_DIR}/php-fpm.conf"; \
     \
     chown -vR www-data:root "${PHP_BIN_DIR}"; \
-    chmod -v 755 "${PHP_BIN_DIR}/*"; \
+    chmod -v 755 "${PHP_BIN_DIR}"/*; \
     chown -vR www-data:root "${PHPFPM_BIN_DIR}"; \
     chmod -v 755 "${PHPFPM_BIN_DIR}/php-fpm"; \
     chown -R www-data:root "${PHP_BASE_DIR}"; \
