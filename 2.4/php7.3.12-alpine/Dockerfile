@@ -1,15 +1,20 @@
 FROM httpd:2.4-alpine
-MAINTAINER chakrit_w@icloud.com
+MAINTAINER Chakrit W <quaos.qrz@gmail.com>
 
-#Reference dockerfile: https://github.com/docker-library/httpd/blob/2f3a5f0a505c3ffcd3ebcb6f06824fe912c00812/2.4/alpine/Dockerfile
+#Reference dockerfile: https://github.com/docker-library/httpd/blob/82fd968fb7cfe496a0f87888777e834530dd9154/2.4/alpine/Dockerfile
 
 LABEL name=httpd-2.4-php7-alpine
-LABEL version=1.0.1
-LABEL author=chakrit_w@icloud.com
+LABEL version=1.1.0
+LABEL author="Chakrit W <quaos.qrz@gmail.com>"
 
 ARG WWWDATA_UID=82
 ARG WWWDATA_GID=82
 #ARG HTTPD_EXTRA_CONFIGURE_ARGS=""
+ARG PHP_VERSION=7.3.12
+ARG PHP_BASE_URL="https://secure.php.net"
+# http://php.net/downloads.php
+# SHA for .tar.gz :
+ARG PHP_SHA256="a0cb9bf2f78498fc090eb553df03cdacc198785dec0818efa7a1804c2b7a8722"
 ARG PHP_EXTRA_CONFIGURE_ARGS=""
 ARG SRC_PATH_PREFIX=""
 #"2.4/alpine/"
@@ -156,12 +161,6 @@ RUN echo "## Installing build tools {"; \
 
 #WORKDIR /usr/src
 
-ENV PHP_VERSION 7.2.8
-ENV PHP_BASE_URL="https://secure.php.net"
-
-# http://php.net/downloads.php
-# SHA for .tar.gz :
-ENV PHP_SHA256="a0cb9bf2f78498fc090eb553df03cdacc198785dec0818efa7a1804c2b7a8722"
 # SHA for .tar.xz :
 # "53ba0708be8a7db44256e3ae9fcecc91b811e5b5119e6080c951ffe7910ffb0f"
 ENV PHP_MD5=""

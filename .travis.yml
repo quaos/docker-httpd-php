@@ -3,7 +3,7 @@ services: docker
 
 env:
   - VERSION=2.4
-  - VERSION=2.4 VARIANT=alpine
+  - VERSION=2.4 VARIANT=php7.3.12-alpine
 
 install:
   - git clone https://github.com/docker-library/official-images.git ~/official-images
@@ -11,7 +11,7 @@ install:
 before_script:
   - env | sort
   - cd "$VERSION/$VARIANT"
-  - image="httpd:${VERSION}${VARIANT:+-$VARIANT}"
+  - image="httpd-php:${VERSION}${VARIANT:+-$VARIANT}"
 
 script:
   - travis_retry docker build -t "$image" .
