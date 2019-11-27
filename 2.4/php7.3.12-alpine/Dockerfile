@@ -16,7 +16,7 @@ ARG PHP_BASE_URL="https://secure.php.net"
 # SHA for .tar.gz :
 ARG PHP_SHA256="a0cb9bf2f78498fc090eb553df03cdacc198785dec0818efa7a1804c2b7a8722"
 ARG PHP_EXTRA_CONFIGURE_ARGS=""
-ARG SRC_PATH_PREFIX=""
+ARG MY_SRC_PATH_PREFIX="2.4/php7.3.12-alpine/"
 #"2.4/alpine/"
 ARG HTTP_PORT=8080
 
@@ -41,7 +41,7 @@ RUN echo "## HTTPD installed files {"; \
     echo "## }"
 # }
 
-COPY "${SRC_PATH_PREFIX}httpd-foreground" "/usr/local/bin/"
+COPY "${MY_SRC_PATH_PREFIX}httpd-foreground" "/usr/local/bin/"
 ENV HTTPD_CONF_DIR "${HTTPD_PREFIX}/conf"
 ENV HTTPD_CONF_D_DIR "${HTTPD_PREFIX}/conf.d"
 ENV HTTPD_PID_DIR "${HTTPD_PREFIX}/logs"
@@ -271,8 +271,8 @@ RUN echo "## PHP installed files {"; \
 # Set configurations for Apache HTTPD & PHP/FPM {
 # Reference: https://github.com/smrutiranjantripathy/alpine-apache-php-fpm
  
-COPY ${SRC_PATH_PREFIX}00-httpd-fpm.conf "${HTTPD_CONF_D_DIR}/"
-COPY ${SRC_PATH_PREFIX}www.conf ${PHP_CONF_DIR}/php-fpm.d/
+COPY ${MY_SRC_PATH_PREFIX}00-httpd-fpm.conf "${HTTPD_CONF_D_DIR}/"
+COPY ${MY_SRC_PATH_PREFIX}www.conf "${PHP_CONF_DIR}/php-fpm.d/"
 
 RUN echo "## Post-build: PHP v${PHP_VERSION} {"; \
     set -x; \
